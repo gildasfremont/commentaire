@@ -6,7 +6,7 @@ import {
   getVersion,
   diff,
   type VersionStore,
-} from "../versioning.js";
+} from "../lib/versioning.js";
 
 describe("Git-like versioning layer", () => {
   let store: VersionStore;

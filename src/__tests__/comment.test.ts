@@ -7,7 +7,7 @@ import {
   getCommentsInRange,
   type CommentStore,
   type CommentIntent,
-} from "../comment.js";
+} from "../lib/comment.js";
 
 describe("Comment model", () => {
   function emptyStore(): CommentStore {

@@ -6,7 +6,7 @@ import {
   hasBeenRead,
   getTimeline,
   type PositionTracker,
-} from "../position.js";
+} from "../lib/position.js";
 
 describe("Reading position tracker", () => {
   let tracker: PositionTracker;

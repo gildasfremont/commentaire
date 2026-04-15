@@ -4,7 +4,7 @@ import {
   parseIntoParagraphs,
   getParagraphAt,
   getTextSlice,
-} from "../document.js";
+} from "../lib/document.js";
 
 describe("Document model", () => {
   const sampleMarkdown = [
