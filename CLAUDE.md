@@ -15,8 +15,17 @@
    - La commande pour tester (ex: `cargo tauri dev`)
 8. Si tu es bloqué, commente l'issue dans Linear avec la question précise. Ne reste pas bloqué en silence.
 
+## Checkpoint à chaque commit
+
+Avant chaque commit, fais ces deux choses :
+1. Pull main pour rester synchronisé.
+2. Lis le fichier `.claude/directives.md` à la racine du repo. S'il existe et contient des instructions, suis-les avant de continuer. S'il n'existe pas, continue normalement.
+
+Ce fichier est le canal de communication de Cowork (l'autre agent) vers toi. Il peut contenir : une correction de trajectoire, une question, une demande d'arrêt, ou un ajustement de scope. Ne l'ignore jamais.
+
 ## Conventions
 
 - Branches : utilise le gitBranchName de l'issue Linear. JAMAIS main directement.
 - Pull main régulièrement si tu travailles sur une branche longue.
 - Ne touche pas au dossier context/ (c'est Cowork qui y écrit).
+- Ne touche pas à `.claude/directives.md` (c'est Cowork qui y écrit).
