@@ -39,7 +39,9 @@ fn run_capture_loop(segment_tx: mpsc::Sender<AudioSegment>) -> Result<(), String
         .default_input_device()
         .ok_or("No input device available")?;
 
-    info!("Using input device: {}", device.name().unwrap_or_default());
+    #[allow(deprecated)]
+    let device_name = device.name().unwrap_or_default();
+    info!("Using input device: {}", device_name);
 
     let config = device
         .default_input_config()

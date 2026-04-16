@@ -62,6 +62,13 @@ fn run_transcription_loop(
         }
     });
 
+    // Create state once and reuse across segments (avoids re-allocating ~300 Mo buffers)
+    let mut state = ctx
+        .create_state()
+        .map_err(|e| format!("Failed to create Whisper state: {}", e))?;
+
+    info!("Whisper state created, ready for transcription");
+
     for segment in segment_rx.iter() {
         let start = std::time::Instant::now();
 
@@ -74,13 +81,10 @@ fn run_transcription_loop(
         params.set_single_segment(true);
         params.set_no_context(true);
 
-        let mut state = ctx
-            .create_state()
-            .map_err(|e| format!("Failed to create Whisper state: {}", e))?;
-
-        state
-            .full(params, &segment.samples)
-            .map_err(|e| format!("Transcription failed: {}", e))?;
+        if let Err(e) = state.full(params, &segment.samples) {
+            error!("Transcription failed: {}", e);
+            continue;
+        }
 
         let num_segments = state.full_n_segments();
         let mut text = String::new();
