@@ -1,4 +1,5 @@
 mod audio;
+mod classifier;
 mod transcriber;
 
 use log::info;

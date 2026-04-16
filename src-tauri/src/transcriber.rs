@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::{error, info, warn};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -6,17 +6,35 @@ use tauri::{AppHandle, Emitter, Listener};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::audio::AudioSegment;
+use crate::classifier::{self, ClassifierContext};
 
-/// Payload sent to the frontend for each transcribed segment.
+/// Scroll position sent by the frontend.
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScrollPosition {
+    paragraph_id: String,
+    paragraph_text: String,
+}
+
+/// Payload sent to the frontend for each classified segment.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TranscriptionSegment {
+pub struct ClassifiedPayload {
+    /// "lecture", "commentaire", "question", "instruction"
+    pub segment_type: String,
+    /// Cleaned text from Haiku
     pub text: String,
+    /// Raw transcription from Whisper
+    pub raw_text: String,
+    /// Confidence 0-1
+    pub confidence: f64,
+    /// Timestamp when segment started
     pub timestamp: String,
+    /// Paragraph ID the segment is anchored to
     pub paragraph_id: String,
 }
 
-/// Start the transcription loop in a new thread.
+/// Start the transcription + classification loop in a new thread.
 pub fn start_transcriber(
     app: AppHandle,
     segment_rx: mpsc::Receiver<AudioSegment>,
@@ -52,26 +70,33 @@ fn run_transcription_loop(
     info!("Whisper model loaded successfully");
 
     // Track the current visible paragraph via frontend events
-    let current_paragraph = std::sync::Arc::new(std::sync::Mutex::new("p-0".to_string()));
+    let current_scroll = std::sync::Arc::new(std::sync::Mutex::new(ScrollPosition {
+        paragraph_id: "p-0".to_string(),
+        paragraph_text: String::new(),
+    }));
 
-    let paragraph_clone = current_paragraph.clone();
+    let scroll_clone = current_scroll.clone();
     app.listen("scroll-position", move |event| {
-        if let Ok(id) = serde_json::from_str::<String>(event.payload()) {
-            let mut p = paragraph_clone.lock().unwrap();
-            *p = id;
+        if let Ok(pos) = serde_json::from_str::<ScrollPosition>(event.payload()) {
+            let mut s = scroll_clone.lock().unwrap();
+            *s = pos;
         }
     });
 
-    // Create state once and reuse across segments (avoids re-allocating ~300 Mo buffers)
+    // Create Whisper state once and reuse
     let mut state = ctx
         .create_state()
         .map_err(|e| format!("Failed to create Whisper state: {}", e))?;
 
     info!("Whisper state created, ready for transcription");
 
+    // Classifier context (last 3 segments)
+    let mut classifier_ctx = ClassifierContext::new();
+
     for segment in segment_rx.iter() {
         let start = std::time::Instant::now();
 
+        // --- Whisper transcription ---
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         params.set_language(Some("fr"));
         params.set_print_special(false);
@@ -97,30 +122,70 @@ fn run_transcription_loop(
         }
 
         let text = text.trim().to_string();
-        let elapsed = start.elapsed();
+        let whisper_elapsed = start.elapsed();
 
         if text.is_empty() || text == "[BLANK_AUDIO]" || text.starts_with('[') {
             info!("Empty or noise segment, skipping");
             continue;
         }
 
-        let paragraph_id = current_paragraph.lock().unwrap().clone();
+        let scroll = current_scroll.lock().unwrap().clone();
 
         info!(
             "Transcribed in {:.1}s: \"{}\" (paragraph: {})",
-            elapsed.as_secs_f32(),
+            whisper_elapsed.as_secs_f32(),
             &text,
-            &paragraph_id
+            &scroll.paragraph_id
         );
 
-        let payload = TranscriptionSegment {
-            text,
-            timestamp: segment.timestamp,
-            paragraph_id,
-        };
+        // --- Haiku classification ---
+        classifier_ctx.add_segment(&text);
 
-        if let Err(e) = app.emit("transcription-segment", &payload) {
-            error!("Failed to emit transcription event: {}", e);
+        match classifier::classify_segment(&text, &scroll.paragraph_text, &classifier_ctx) {
+            Ok(classified) => {
+                let total_elapsed = start.elapsed();
+                info!(
+                    "Classified as '{}' (conf: {:.2}) in {:.1}s total — \"{}\"",
+                    classified.segment_type,
+                    classified.confiance,
+                    total_elapsed.as_secs_f32(),
+                    classified.contenu_nettoye
+                );
+
+                // Skip "lecture" segments — user is just reading aloud
+                if classified.segment_type == "lecture" {
+                    info!("Lecture segment filtered out");
+                    continue;
+                }
+
+                let payload = ClassifiedPayload {
+                    segment_type: classified.segment_type,
+                    text: classified.contenu_nettoye,
+                    raw_text: text,
+                    confidence: classified.confiance,
+                    timestamp: segment.timestamp,
+                    paragraph_id: scroll.paragraph_id,
+                };
+
+                if let Err(e) = app.emit("classified-segment", &payload) {
+                    error!("Failed to emit classified segment event: {}", e);
+                }
+            }
+            Err(e) => {
+                warn!("Classification failed, emitting raw segment: {}", e);
+                // Fallback: emit as unclassified comment
+                let payload = ClassifiedPayload {
+                    segment_type: "commentaire".to_string(),
+                    text: text.clone(),
+                    raw_text: text,
+                    confidence: 0.0,
+                    timestamp: segment.timestamp,
+                    paragraph_id: scroll.paragraph_id,
+                };
+                if let Err(e) = app.emit("classified-segment", &payload) {
+                    error!("Failed to emit fallback segment event: {}", e);
+                }
+            }
         }
     }
 
