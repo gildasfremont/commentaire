@@ -1,0 +1,103 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #faf9f6;
+  color: #1a1a1a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.document-column {
+  width: 60%;
+  padding: 3rem 4rem;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.comment-column {
+  width: 40%;
+  border-left: 1px solid #e0ddd8;
+  background: #f5f4f0;
+}
+
+/* Typography */
+#document h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  line-height: 1.3;
+  color: #111;
+}
+
+#document h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+  color: #222;
+}
+
+#document h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  color: #333;
+}
+
+#document p {
+  margin-bottom: 1.2rem;
+  text-align: left;
+  hanging-punctuation: first;
+}
+
+#document blockquote {
+  border-left: 3px solid #999;
+  padding-left: 1.5rem;
+  margin: 1.5rem 0;
+  color: #555;
+  font-style: italic;
+}
+
+#document ul,
+#document ol {
+  margin: 1rem 0 1.2rem 1.5rem;
+}
+
+#document li {
+  margin-bottom: 0.4rem;
+}
+
+#document em {
+  font-style: italic;
+}
+
+#document strong {
+  font-weight: 700;
+}
+
+#document hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 2rem 0;
+}
+
+/* Paragraph hover state (future: click to comment) */
+#document p[id]:hover {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 2px;
+  cursor: default;
+}
