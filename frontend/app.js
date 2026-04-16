@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   const { listen, emit } = window.__TAURI__.event;
+  const { invoke } = window.__TAURI__.core;
 
   // Mic indicator: pulse while active
   micIndicator.classList.add("active");
@@ -44,12 +45,52 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { segmentType, text, rawText, confidence, timestamp, paragraphId } = event.payload;
     addClassifiedSegment(segmentType, text, rawText, confidence, timestamp, paragraphId);
   });
+
+  // Listen for acknowledgment (Haiku, fast)
+  await listen("ack-response", (event) => {
+    const { text, questionId } = event.payload;
+    showAcknowledgment(questionId, text);
+  });
+
+  // Listen for Opus response (streamed)
+  await listen("opus-response", (event) => {
+    const { text, questionId, isFinal } = event.payload;
+    updateOpusResponse(questionId, text, isFinal);
+  });
+
+  // Simulate question shortcut: Ctrl+Q
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey && e.key === "q") {
+      e.preventDefault();
+      const visibleP = getVisibleParagraph(container);
+      const question = prompt("Simuler une question :", "Pourquoi il dit ça ici ?");
+      if (question && visibleP) {
+        invoke("simulate_question", {
+          text: question,
+          paragraphId: visibleP.id,
+        });
+      }
+    }
+  });
 });
 
 /**
  * Emit the current scroll position with paragraph ID and text.
  */
 function emitScrollPosition(container, emit) {
+  const p = getVisibleParagraph(container);
+  if (p) {
+    emit("scroll-position", {
+      paragraphId: p.id,
+      paragraphText: p.textContent || "",
+    });
+  }
+}
+
+/**
+ * Find the paragraph closest to the vertical center.
+ */
+function getVisibleParagraph(container) {
   const paragraphs = container.querySelectorAll("p[id]");
   const containerRect = container.getBoundingClientRect();
   const centerY = containerRect.top + containerRect.height / 2;
@@ -65,13 +106,7 @@ function emitScrollPosition(container, emit) {
       closest = p;
     }
   }
-
-  if (closest) {
-    emit("scroll-position", {
-      paragraphId: closest.id,
-      paragraphText: closest.textContent || "",
-    });
-  }
+  return closest;
 }
 
 /**
@@ -82,6 +117,11 @@ function addClassifiedSegment(type, text, rawText, confidence, timestamp, paragr
 
   const segment = document.createElement("div");
   segment.className = `transcription-segment segment-${type}`;
+
+  // For questions, add a data attribute for ack/response targeting
+  if (type === "question") {
+    segment.dataset.questionAnchor = "true";
+  }
 
   const meta = document.createElement("div");
   meta.className = "segment-meta";
@@ -106,6 +146,69 @@ function addClassifiedSegment(type, text, rawText, confidence, timestamp, paragr
   segment.appendChild(content);
   list.appendChild(segment);
 
-  // Scroll to the latest segment
+  list.scrollTop = list.scrollHeight;
+}
+
+/**
+ * Show a Haiku acknowledgment under the latest question.
+ */
+function showAcknowledgment(questionId, text) {
+  const list = document.getElementById("transcription-list");
+
+  // Create or find the response container for this question
+  let responseDiv = document.getElementById(`response-${questionId}`);
+  if (!responseDiv) {
+    responseDiv = document.createElement("div");
+    responseDiv.id = `response-${questionId}`;
+    responseDiv.className = "ai-response ack-state";
+    list.appendChild(responseDiv);
+  }
+
+  responseDiv.innerHTML = "";
+
+  const label = document.createElement("div");
+  label.className = "response-label";
+  label.textContent = "...";
+
+  const content = document.createElement("div");
+  content.className = "response-text ack-text";
+  content.textContent = text;
+
+  responseDiv.appendChild(label);
+  responseDiv.appendChild(content);
+
+  list.scrollTop = list.scrollHeight;
+}
+
+/**
+ * Update the Opus response (replaces ack).
+ */
+function updateOpusResponse(questionId, text, isFinal) {
+  const list = document.getElementById("transcription-list");
+
+  let responseDiv = document.getElementById(`response-${questionId}`);
+  if (!responseDiv) {
+    responseDiv = document.createElement("div");
+    responseDiv.id = `response-${questionId}`;
+    responseDiv.className = "ai-response";
+    list.appendChild(responseDiv);
+  }
+
+  // Transition from ack to response
+  responseDiv.className = isFinal ? "ai-response opus-final" : "ai-response opus-streaming";
+
+  responseDiv.innerHTML = "";
+
+  const label = document.createElement("div");
+  label.className = "response-label";
+  label.textContent = isFinal ? "Opus" : "Opus...";
+
+  const content = document.createElement("div");
+  content.className = "response-text opus-text";
+  content.textContent = text;
+
+  responseDiv.appendChild(label);
+  responseDiv.appendChild(content);
+
   list.scrollTop = list.scrollHeight;
 }

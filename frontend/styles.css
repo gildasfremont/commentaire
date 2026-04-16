@@ -206,3 +206,57 @@ body {
   color: #1a1a1a;
   font-weight: 500;
 }
+
+/* AI response blocks */
+.ai-response {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ai-response.ack-state {
+  background: #fefce8;
+  border: 1px solid #fde68a;
+}
+
+.ai-response.opus-streaming {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.ai-response.opus-final {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.response-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #888;
+  margin-bottom: 0.25rem;
+}
+
+.ack-text {
+  font-size: 0.85rem;
+  color: #92400e;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.opus-text {
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  line-height: 1.6;
+}
+
+/* Simulate question hint */
+.simulate-hint {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.65rem;
+  color: #bbb;
+  text-align: center;
+  padding: 0.5rem;
+}
