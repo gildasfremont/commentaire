@@ -1,4 +1,4 @@
-use log::{error, info, warn};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::process::Command;
