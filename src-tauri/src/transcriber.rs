@@ -7,6 +7,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 
 use crate::audio::AudioSegment;
 use crate::classifier::{self, ClassifierContext};
+use crate::responder;
 
 /// Scroll position sent by the frontend.
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -93,6 +94,15 @@ fn run_transcription_loop(
     // Classifier context (last 3 segments)
     let mut classifier_ctx = ClassifierContext::new();
 
+    // Load document text for Opus context
+    let document_text = load_document_text();
+
+    // Track all comments for Opus context
+    let mut all_comments: Vec<String> = Vec::new();
+
+    // Question counter for unique IDs
+    let mut question_counter: u32 = 0;
+
     for segment in segment_rx.iter() {
         let start = std::time::Instant::now();
 
@@ -158,17 +168,40 @@ fn run_transcription_loop(
                     continue;
                 }
 
+                let is_question = classified.segment_type == "question";
+                let clean_text = classified.contenu_nettoye.clone();
+
                 let payload = ClassifiedPayload {
                     segment_type: classified.segment_type,
                     text: classified.contenu_nettoye,
-                    raw_text: text,
+                    raw_text: text.clone(),
                     confidence: classified.confiance,
-                    timestamp: segment.timestamp,
-                    paragraph_id: scroll.paragraph_id,
+                    timestamp: segment.timestamp.clone(),
+                    paragraph_id: scroll.paragraph_id.clone(),
                 };
+
+                // Track comment for Opus context
+                all_comments.push(format!("[{}] {}", scroll.paragraph_id, &clean_text));
 
                 if let Err(e) = app.emit("classified-segment", &payload) {
                     error!("Failed to emit classified segment event: {}", e);
+                }
+
+                // Trigger responder for questions
+                if is_question {
+                    question_counter += 1;
+                    let qid = format!("q-{}", question_counter);
+
+                    info!("Question detected, triggering responder ({})", qid);
+                    responder::handle_question(
+                        app.clone(),
+                        qid,
+                        clean_text,
+                        scroll.paragraph_id.clone(),
+                        scroll.paragraph_text.clone(),
+                        document_text.clone(),
+                        all_comments.clone(),
+                    );
                 }
             }
             Err(e) => {
@@ -190,4 +223,24 @@ fn run_transcription_loop(
     }
 
     Ok(())
+}
+
+/// Load the document markdown text for Opus context.
+fn load_document_text() -> String {
+    let doc_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("frontend")
+        .join("document.md");
+
+    match std::fs::read_to_string(&doc_path) {
+        Ok(text) => {
+            info!("Loaded document ({} chars) for Opus context", text.len());
+            text
+        }
+        Err(e) => {
+            error!("Failed to load document from {:?}: {}", doc_path, e);
+            String::new()
+        }
+    }
 }
