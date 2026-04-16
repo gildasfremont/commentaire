@@ -168,3 +168,41 @@ body {
   line-height: 1.5;
   color: #333;
 }
+
+/* Segment type labels */
+.segment-type-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.type-commentaire {
+  color: #666;
+  background: #eee;
+}
+
+.type-question {
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.type-instruction {
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+/* Question segments stand out */
+.segment-question {
+  border-left: 3px solid #f97316;
+  padding-left: 0.75rem;
+}
+
+.segment-question .segment-text {
+  color: #1a1a1a;
+  font-weight: 500;
+}

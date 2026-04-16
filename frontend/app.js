@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // --- Tauri integration ---
-  // Check if running inside Tauri
   if (!window.__TAURI__) {
     console.log("Not running in Tauri, skipping event listeners");
     return;
@@ -28,37 +27,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Mic indicator: pulse while active
   micIndicator.classList.add("active");
 
-  // Track visible paragraph and emit scroll position
+  // Track visible paragraph and emit scroll position with text
   let scrollTimeout = null;
   container.addEventListener("scroll", () => {
     if (scrollTimeout) clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
-      const visibleParagraph = getVisibleParagraph(container);
-      if (visibleParagraph) {
-        emit("scroll-position", visibleParagraph);
-      }
+      emitScrollPosition(container, emit);
     }, 200);
   });
 
   // Emit initial scroll position
-  setTimeout(() => {
-    const visibleParagraph = getVisibleParagraph(container);
-    if (visibleParagraph) {
-      emit("scroll-position", visibleParagraph);
-    }
-  }, 500);
+  setTimeout(() => emitScrollPosition(container, emit), 500);
 
-  // Listen for transcription segments
-  await listen("transcription-segment", (event) => {
-    const { text, timestamp, paragraphId } = event.payload;
-    addTranscriptionSegment(text, timestamp, paragraphId);
+  // Listen for classified segments (from Haiku)
+  await listen("classified-segment", (event) => {
+    const { segmentType, text, rawText, confidence, timestamp, paragraphId } = event.payload;
+    addClassifiedSegment(segmentType, text, rawText, confidence, timestamp, paragraphId);
   });
 });
 
 /**
- * Find the paragraph closest to the vertical center of the document column.
+ * Emit the current scroll position with paragraph ID and text.
  */
-function getVisibleParagraph(container) {
+function emitScrollPosition(container, emit) {
   const paragraphs = container.querySelectorAll("p[id]");
   const containerRect = container.getBoundingClientRect();
   const centerY = containerRect.top + containerRect.height / 2;
@@ -71,29 +62,45 @@ function getVisibleParagraph(container) {
     const dist = Math.abs(rect.top + rect.height / 2 - centerY);
     if (dist < closestDist) {
       closestDist = dist;
-      closest = p.id;
+      closest = p;
     }
   }
 
-  return closest;
+  if (closest) {
+    emit("scroll-position", {
+      paragraphId: closest.id,
+      paragraphText: closest.textContent || "",
+    });
+  }
 }
 
 /**
- * Add a transcription segment to the sidebar.
+ * Add a classified segment to the sidebar.
  */
-function addTranscriptionSegment(text, timestamp, paragraphId) {
+function addClassifiedSegment(type, text, rawText, confidence, timestamp, paragraphId) {
   const list = document.getElementById("transcription-list");
 
   const segment = document.createElement("div");
-  segment.className = "transcription-segment";
+  segment.className = `transcription-segment segment-${type}`;
 
   const meta = document.createElement("div");
   meta.className = "segment-meta";
-  meta.textContent = `${timestamp} · ${paragraphId}`;
+
+  const typeLabel = document.createElement("span");
+  typeLabel.className = `segment-type-label type-${type}`;
+  typeLabel.textContent = type === "question" ? "? Question" :
+                          type === "instruction" ? "! Instruction" :
+                          "Commentaire";
+
+  const metaInfo = document.createElement("span");
+  metaInfo.textContent = ` · ${timestamp} · ${paragraphId}`;
+
+  meta.appendChild(typeLabel);
+  meta.appendChild(metaInfo);
 
   const content = document.createElement("div");
   content.className = "segment-text";
-  content.textContent = text;
+  content.textContent = text || rawText;
 
   segment.appendChild(meta);
   segment.appendChild(content);
