@@ -9,6 +9,10 @@ const DEFAULT_STATUS = "idle";
 // Track all comment stacks so we can restack on new arrivals.
 const stacksByParagraph = new Map(); // paragraphId -> HTMLElement
 
+// Question blocks keyed by questionId, so ack/opus responses land in the
+// right stack even when multiple questions are in flight.
+const questionBlocksById = new Map();
+
 // Index of Opus ack/response blocks keyed by questionId (to update in place).
 const responseBlocksById = new Map();
 
@@ -55,8 +59,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Classified segments → anchored in margin
   await listen("classified-segment", (event) => {
-    const { segmentType, text, rawText, timestamp, paragraphId } = event.payload;
-    addClassifiedSegment(segmentType, text, rawText, timestamp, paragraphId, marginEl);
+    const { segmentType, text, rawText, timestamp, paragraphId, questionId } = event.payload;
+    addClassifiedSegment(segmentType, text, rawText, timestamp, paragraphId, questionId, marginEl);
     setStatus("idle");
   });
 
@@ -101,12 +105,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  if (recordBtn) recordBtn.addEventListener("click", toggleRecording);
+  if (recordBtn) {
+    recordBtn.addEventListener("click", () => {
+      toggleRecording();
+      // Blur so a subsequent Space press doesn't re-trigger the button click.
+      recordBtn.blur();
+    });
+  }
 
   document.addEventListener("keydown", (e) => {
     if (e.code !== "Space") return;
     const tag = (e.target && e.target.tagName) || "";
-    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    // Skip typing contexts AND the record button itself — when the button has
+    // focus, the browser will also dispatch a click on keyup, which would
+    // double-fire toggleRecording.
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON") return;
     e.preventDefault();
     toggleRecording();
   });
@@ -237,7 +250,7 @@ function updateDensityMarker(paragraphId) {
 /**
  * Add a classified segment to its paragraph's stack.
  */
-function addClassifiedSegment(type, text, rawText, timestamp, paragraphId, marginEl) {
+function addClassifiedSegment(type, text, rawText, timestamp, paragraphId, questionId, marginEl) {
   const stack = getOrCreateStack(paragraphId, marginEl);
 
   const block = document.createElement("div");
@@ -264,22 +277,35 @@ function addClassifiedSegment(type, text, rawText, timestamp, paragraphId, margi
   block.appendChild(textEl);
   stack.appendChild(block);
 
-  // For questions, remember this block as the anchor for ack/opus responses.
-  if (type === "question") {
-    block.dataset.role = "question-anchor";
+  // For questions, remember this block by its questionId so we can drop the
+  // ack / Opus response next to it (not next to the latest unrelated question).
+  if (type === "question" && questionId) {
+    block.dataset.questionId = questionId;
+    questionBlocksById.set(questionId, block);
   }
 
   updateDensityMarker(paragraphId);
 }
 
 /**
- * Show a Haiku acknowledgment below the most recent question, in the same stack.
+ * Find the stack for a given questionId, or null if the question block isn't
+ * registered (can happen if the ack arrives before the classified-segment,
+ * which shouldn't happen but we stay defensive).
+ */
+function stackForQuestion(questionId) {
+  const block = questionBlocksById.get(questionId);
+  return block ? block.parentElement : null;
+}
+
+/**
+ * Show a Haiku acknowledgment in the stack of its question.
  */
 function showAcknowledgment(questionId, text) {
-  // Find the most recent question block (no explicit linking yet)
-  const anchor = findLatestQuestionAnchor();
-  if (!anchor) return;
-  const stack = anchor.parentElement;
+  const stack = stackForQuestion(questionId);
+  if (!stack) {
+    console.warn("ack-response for unknown question", questionId);
+    return;
+  }
 
   let responseDiv = responseBlocksById.get(questionId);
   if (!responseDiv) {
@@ -308,9 +334,11 @@ function showAcknowledgment(questionId, text) {
 function updateOpusResponse(questionId, text, isFinal) {
   let responseDiv = responseBlocksById.get(questionId);
   if (!responseDiv) {
-    const anchor = findLatestQuestionAnchor();
-    if (!anchor) return;
-    const stack = anchor.parentElement;
+    const stack = stackForQuestion(questionId);
+    if (!stack) {
+      console.warn("opus-response for unknown question", questionId);
+      return;
+    }
     responseDiv = document.createElement("div");
     stack.appendChild(responseDiv);
     responseBlocksById.set(questionId, responseDiv);
@@ -326,11 +354,6 @@ function updateOpusResponse(questionId, text, isFinal) {
   content.textContent = text;
   responseDiv.appendChild(label);
   responseDiv.appendChild(content);
-}
-
-function findLatestQuestionAnchor() {
-  const anchors = document.querySelectorAll('.comment-block[data-role="question-anchor"]');
-  return anchors.length ? anchors[anchors.length - 1] : null;
 }
 
 /**

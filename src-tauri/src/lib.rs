@@ -60,6 +60,13 @@ fn simulate_question(
     metrics.segment_type = classified.segment_type.clone();
     info!("Classified as: {} (conf: {:.2})", classified.segment_type, classified.confiance);
 
+    let is_question = classified.segment_type == "question";
+    let question_id = if is_question {
+        format!("q-{}", sim_id)
+    } else {
+        String::new()
+    };
+
     // Emit classified segment to frontend
     use tauri::Emitter;
     let _ = app.emit("classified-segment", serde_json::json!({
@@ -69,15 +76,15 @@ fn simulate_question(
         "confidence": classified.confiance,
         "timestamp": chrono::Local::now().format("%H:%M:%S").to_string(),
         "paragraphId": &paragraph_id,
+        "questionId": &question_id,
     }));
 
     // If it's a question, trigger the responder (it will log metrics).
     // Otherwise log now.
-    if classified.segment_type == "question" {
-        let qid = format!("q-{}", sim_id);
+    if is_question {
         responder::handle_question(
             app,
-            qid,
+            question_id,
             classified.contenu_nettoye,
             paragraph_id,
             paragraph_text,

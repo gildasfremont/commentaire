@@ -34,6 +34,11 @@ pub struct ClassifiedPayload {
     pub timestamp: String,
     /// Paragraph ID the segment is anchored to
     pub paragraph_id: String,
+    /// Question ID when segment_type == "question", empty otherwise.
+    /// Assigned before emission so the frontend can bind ack/opus
+    /// responses to the exact block even when multiple questions are
+    /// in flight.
+    pub question_id: String,
 }
 
 /// Start the transcription + classification loop in a new thread.
@@ -185,6 +190,16 @@ fn run_transcription_loop(
                 let is_question = classified.segment_type == "question";
                 let clean_text = classified.contenu_nettoye.clone();
 
+                // Reserve the question ID BEFORE emitting classified-segment so the
+                // frontend can bind ack/opus events to the exact block even when
+                // multiple questions are in flight.
+                let question_id = if is_question {
+                    question_counter += 1;
+                    format!("q-{}", question_counter)
+                } else {
+                    String::new()
+                };
+
                 let payload = ClassifiedPayload {
                     segment_type: classified.segment_type,
                     text: classified.contenu_nettoye,
@@ -192,6 +207,7 @@ fn run_transcription_loop(
                     confidence: classified.confiance,
                     timestamp: segment.timestamp.clone(),
                     paragraph_id: scroll.paragraph_id.clone(),
+                    question_id: question_id.clone(),
                 };
 
                 // Track comment for Opus context
@@ -203,13 +219,10 @@ fn run_transcription_loop(
 
                 // Trigger responder for questions (responder owns logging for questions)
                 if is_question {
-                    question_counter += 1;
-                    let qid = format!("q-{}", question_counter);
-
-                    info!("Question detected, triggering responder ({})", qid);
+                    info!("Question detected, triggering responder ({})", question_id);
                     responder::handle_question(
                         app.clone(),
-                        qid,
+                        question_id,
                         clean_text,
                         scroll.paragraph_id.clone(),
                         scroll.paragraph_text.clone(),
@@ -234,6 +247,7 @@ fn run_transcription_loop(
                     confidence: 0.0,
                     timestamp: segment.timestamp,
                     paragraph_id: scroll.paragraph_id,
+                    question_id: String::new(),
                 };
                 if let Err(e) = app.emit("classified-segment", &payload) {
                     error!("Failed to emit fallback segment event: {}", e);
