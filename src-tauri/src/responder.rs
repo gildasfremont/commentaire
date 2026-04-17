@@ -2,7 +2,10 @@ use log::{error, info};
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
+
+use crate::latency::{self, SegmentLatency};
 
 /// Acknowledgment payload from Haiku.
 #[derive(Clone, Serialize)]
@@ -49,17 +52,25 @@ pub fn handle_question(
     paragraph_text: String,
     document_text: String,
     all_comments: Vec<String>,
+    metrics: SegmentLatency,
 ) {
+    // Shared metrics between ack and opus threads (Opus always logs since it's slower)
+    let metrics = Arc::new(Mutex::new(metrics));
+
     let app_ack = app.clone();
     let question_text_ack = question_text.clone();
     let paragraph_text_ack = paragraph_text.clone();
     let qid_ack = question_id.clone();
+    let metrics_ack = metrics.clone();
 
     // Thread 1: Haiku acknowledgment (fast, < 2s)
     std::thread::spawn(move || {
+        let ack_start = std::time::Instant::now();
         match generate_acknowledgment(&question_text_ack, &paragraph_text_ack) {
             Ok(ack_text) => {
-                info!("Ack generated: \"{}\"", ack_text);
+                let ack_ms = ack_start.elapsed().as_millis();
+                metrics_ack.lock().unwrap().ack_ms = Some(ack_ms);
+                info!("Ack generated in {}ms: \"{}\"", ack_ms, ack_text);
                 let _ = app_ack.emit("ack-response", AckPayload {
                     text: ack_text,
                     question_id: qid_ack,
@@ -67,7 +78,7 @@ pub fn handle_question(
             }
             Err(e) => {
                 error!("Ack generation failed: {}", e);
-                // Fallback generic ack
+                metrics_ack.lock().unwrap().ack_ms = Some(ack_start.elapsed().as_millis());
                 let _ = app_ack.emit("ack-response", AckPayload {
                     text: "Laisse-moi regarder ce passage...".to_string(),
                     question_id: qid_ack,
@@ -76,10 +87,12 @@ pub fn handle_question(
         }
     });
 
-    // Thread 2: Opus response (slow, 5-15s, streamed)
+    // Thread 2: Opus response (slow, 5-15s, streamed). Logs metrics at the end.
     let app_opus = app.clone();
     let qid_opus = question_id.clone();
+    let metrics_opus = metrics.clone();
     std::thread::spawn(move || {
+        let opus_start = std::time::Instant::now();
         match generate_opus_response(
             &app_opus,
             &qid_opus,
@@ -88,6 +101,8 @@ pub fn handle_question(
             &paragraph_text,
             &document_text,
             &all_comments,
+            &metrics_opus,
+            opus_start,
         ) {
             Ok(_) => info!("Opus response complete for question {}", qid_opus),
             Err(e) => {
@@ -99,6 +114,12 @@ pub fn handle_question(
                 });
             }
         }
+
+        metrics_opus.lock().unwrap().opus_total_ms = Some(opus_start.elapsed().as_millis());
+        // Give ack a moment to finish if it hasn't yet
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        let final_metrics = metrics_opus.lock().unwrap().clone();
+        latency::log_segment(&final_metrics);
     });
 }
 
@@ -143,6 +164,8 @@ fn generate_opus_response(
     paragraph_text: &str,
     document_text: &str,
     comments: &[String],
+    metrics: &Arc<Mutex<SegmentLatency>>,
+    opus_start: std::time::Instant,
 ) -> Result<(), String> {
     let comments_section = if comments.is_empty() {
         "Aucun commentaire précédent.".to_string()
@@ -181,6 +204,7 @@ fn generate_opus_response(
     let reader = BufReader::new(stdout);
 
     let mut full_text = String::new();
+    let mut first_token_recorded = false;
 
     for line in reader.lines() {
         let line = line.map_err(|e| format!("Failed to read Opus output: {}", e))?;
@@ -190,16 +214,20 @@ fn generate_opus_response(
         }
 
         // stream-json format: each line is a JSON object
-        // We look for content_block_delta events with text
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
-            // Handle different stream-json event types
             if let Some(result) = json.get("result").and_then(|r| r.as_str()) {
-                // Final result line
+                if !first_token_recorded {
+                    metrics.lock().unwrap().opus_first_token_ms = Some(opus_start.elapsed().as_millis());
+                    first_token_recorded = true;
+                }
                 full_text = result.to_string();
                 break;
             }
-            // Some formats emit content directly
             if let Some(content) = json.get("content").and_then(|c| c.as_str()) {
+                if !first_token_recorded {
+                    metrics.lock().unwrap().opus_first_token_ms = Some(opus_start.elapsed().as_millis());
+                    first_token_recorded = true;
+                }
                 full_text.push_str(content);
                 let _ = app.emit("opus-response", OpusResponsePayload {
                     text: full_text.clone(),
@@ -207,12 +235,13 @@ fn generate_opus_response(
                     is_final: false,
                 });
             }
-        } else {
-            // Plain text line — accumulate
-            if !line.starts_with('{') {
-                full_text.push_str(&line);
-                full_text.push('\n');
+        } else if !line.starts_with('{') {
+            if !first_token_recorded {
+                metrics.lock().unwrap().opus_first_token_ms = Some(opus_start.elapsed().as_millis());
+                first_token_recorded = true;
             }
+            full_text.push_str(&line);
+            full_text.push('\n');
         }
     }
 

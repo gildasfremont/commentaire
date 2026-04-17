@@ -1,11 +1,11 @@
 mod audio;
 mod classifier;
+mod latency;
 mod responder;
 mod transcriber;
 
 use log::info;
 use std::path::PathBuf;
-use tauri::Manager;
 
 /// Tauri command: simulate a question without using the microphone.
 /// Used for testing the full pipeline: classification → ack → Opus response.
@@ -29,14 +29,25 @@ fn simulate_question(
     // Extract paragraph text from markdown (rough: find by paragraph index)
     let paragraph_text = extract_paragraph_text(&document_text, &paragraph_id);
 
-    // First classify via Haiku
+    // Create metrics for this simulated segment
+    let sim_id = format!("sim-{}", chrono::Local::now().format("%H%M%S"));
+    let mut metrics = latency::SegmentLatency::new(sim_id.clone());
+    metrics.text_preview = latency::preview(&text);
+    // Mark whisper as not applicable (skipped in simulation) by leaving it None.
+
+    // Classify via Haiku
     let mut ctx = classifier::ClassifierContext::new();
     ctx.add_segment(&text);
 
+    let haiku_start = std::time::Instant::now();
     let classified = match classifier::classify_segment(&text, &paragraph_text, &ctx) {
-        Ok(c) => c,
+        Ok(c) => {
+            metrics.haiku_ms = Some(haiku_start.elapsed().as_millis());
+            c
+        }
         Err(e) => {
             info!("Classification failed, treating as question: {}", e);
+            metrics.haiku_ms = Some(haiku_start.elapsed().as_millis());
             classifier::ClassifiedSegment {
                 segment_type: "question".to_string(),
                 contenu_nettoye: text.clone(),
@@ -45,6 +56,7 @@ fn simulate_question(
         }
     };
 
+    metrics.segment_type = classified.segment_type.clone();
     info!("Classified as: {} (conf: {:.2})", classified.segment_type, classified.confiance);
 
     // Emit classified segment to frontend
@@ -58,9 +70,10 @@ fn simulate_question(
         "paragraphId": &paragraph_id,
     }));
 
-    // If it's a question, trigger the responder
+    // If it's a question, trigger the responder (it will log metrics).
+    // Otherwise log now.
     if classified.segment_type == "question" {
-        let qid = format!("q-sim-{}", chrono::Local::now().format("%H%M%S"));
+        let qid = format!("q-{}", sim_id);
         responder::handle_question(
             app,
             qid,
@@ -69,7 +82,10 @@ fn simulate_question(
             paragraph_text,
             document_text,
             Vec::new(),
+            metrics,
         );
+    } else {
+        latency::log_segment(&metrics);
     }
 }
 

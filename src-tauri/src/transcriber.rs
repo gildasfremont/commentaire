@@ -7,6 +7,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 
 use crate::audio::AudioSegment;
 use crate::classifier::{self, ClassifierContext};
+use crate::latency::{self, SegmentLatency};
 use crate::responder;
 
 /// Scroll position sent by the frontend.
@@ -102,9 +103,13 @@ fn run_transcription_loop(
 
     // Question counter for unique IDs
     let mut question_counter: u32 = 0;
+    let mut segment_counter: u32 = 0;
 
     for segment in segment_rx.iter() {
         let start = std::time::Instant::now();
+        segment_counter += 1;
+        let segment_id = format!("s-{}", segment_counter);
+        let mut metrics = SegmentLatency::new(segment_id.clone());
 
         // --- Whisper transcription ---
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
@@ -133,9 +138,13 @@ fn run_transcription_loop(
 
         let text = text.trim().to_string();
         let whisper_elapsed = start.elapsed();
+        metrics.whisper_ms = Some(whisper_elapsed.as_millis());
+        metrics.text_preview = latency::preview(&text);
 
         if text.is_empty() || text == "[BLANK_AUDIO]" || text.starts_with('[') {
             info!("Empty or noise segment, skipping");
+            metrics.segment_type = "noise".to_string();
+            latency::log_segment(&metrics);
             continue;
         }
 
@@ -150,9 +159,11 @@ fn run_transcription_loop(
 
         // --- Haiku classification ---
         classifier_ctx.add_segment(&text);
+        let haiku_start = std::time::Instant::now();
 
         match classifier::classify_segment(&text, &scroll.paragraph_text, &classifier_ctx) {
             Ok(classified) => {
+                metrics.haiku_ms = Some(haiku_start.elapsed().as_millis());
                 let total_elapsed = start.elapsed();
                 info!(
                     "Classified as '{}' (conf: {:.2}) in {:.1}s total — \"{}\"",
@@ -162,9 +173,12 @@ fn run_transcription_loop(
                     classified.contenu_nettoye
                 );
 
+                metrics.segment_type = classified.segment_type.clone();
+
                 // Skip "lecture" segments — user is just reading aloud
                 if classified.segment_type == "lecture" {
                     info!("Lecture segment filtered out");
+                    latency::log_segment(&metrics);
                     continue;
                 }
 
@@ -187,7 +201,7 @@ fn run_transcription_loop(
                     error!("Failed to emit classified segment event: {}", e);
                 }
 
-                // Trigger responder for questions
+                // Trigger responder for questions (responder owns logging for questions)
                 if is_question {
                     question_counter += 1;
                     let qid = format!("q-{}", question_counter);
@@ -201,11 +215,17 @@ fn run_transcription_loop(
                         scroll.paragraph_text.clone(),
                         document_text.clone(),
                         all_comments.clone(),
+                        metrics.clone(),
                     );
+                } else {
+                    latency::log_segment(&metrics);
                 }
             }
             Err(e) => {
                 warn!("Classification failed, emitting raw segment: {}", e);
+                metrics.haiku_ms = Some(haiku_start.elapsed().as_millis());
+                metrics.segment_type = "classification_failed".to_string();
+                latency::log_segment(&metrics);
                 // Fallback: emit as unclassified comment
                 let payload = ClassifiedPayload {
                     segment_type: "commentaire".to_string(),
