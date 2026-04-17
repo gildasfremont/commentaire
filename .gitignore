@@ -4,3 +4,4 @@ node_modules/
 # Whisper models (too large for git)
 models/
 *.bin
+context/qa/
