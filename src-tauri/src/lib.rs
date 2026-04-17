@@ -6,6 +6,7 @@ mod transcriber;
 
 use log::info;
 use std::path::PathBuf;
+use tauri::Manager;
 
 /// Tauri command: simulate a question without using the microphone.
 /// Used for testing the full pipeline: classification → ack → Opus response.
@@ -108,10 +109,28 @@ fn extract_paragraph_text(markdown: &str, paragraph_id: &str) -> String {
     paragraphs.get(index).unwrap_or(&"").trim().to_string()
 }
 
+/// Tauri command: start recording audio. Called from the frontend when the
+/// user toggles the push-to-talk button on.
+#[tauri::command]
+fn start_recording(controller: tauri::State<'_, audio::AudioController>) {
+    controller.start_recording();
+}
+
+/// Tauri command: stop recording. Ships the accumulated buffer to the
+/// transcription pipeline. Returns the sample count (0 if too short).
+#[tauri::command]
+fn stop_recording(controller: tauri::State<'_, audio::AudioController>) -> usize {
+    controller.stop_recording()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![simulate_question])
+        .invoke_handler(tauri::generate_handler![
+            simulate_question,
+            start_recording,
+            stop_recording
+        ])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -125,9 +144,13 @@ pub fn run() {
             let model_path = resolve_model_path();
             info!("Whisper model path: {:?}", model_path);
 
-            // Start audio capture pipeline
-            let segment_rx = audio::start_capture(app.handle().clone())
-                .expect("Failed to start audio capture");
+            // Start audio capture pipeline (push-to-talk mode)
+            let (segment_rx, controller) =
+                audio::start_capture(app.handle().clone())
+                    .expect("Failed to start audio capture");
+
+            // Expose the controller to Tauri commands
+            app.manage(controller);
 
             // Start transcription pipeline
             transcriber::start_transcriber(

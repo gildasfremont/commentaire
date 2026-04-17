@@ -1,10 +1,17 @@
+//! Push-to-talk audio capture.
+//!
+//! The stream runs continuously in a cpal callback so that we can emit
+//! amplitude ticks for visual feedback even when we're not recording.
+//! Recording itself is gated by an `AudioController`: `start_recording`
+//! opens a buffer, `stop_recording` closes it and ships the accumulated
+//! samples to the transcription pipeline through a channel.
+
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::SampleFormat;
-use log::{error, info, warn};
+use log::{error, info};
 use rubato::{SincFixedIn, SincInterpolationParameters, SincInterpolationType, Resampler, WindowFunction};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 
 /// A completed audio segment ready for transcription.
@@ -15,26 +22,74 @@ pub struct AudioSegment {
     pub timestamp: String,
 }
 
-/// Configuration for the VAD (voice activity detection).
-const RMS_THRESHOLD: f32 = 0.015; // Energy threshold for speech detection
-const SILENCE_DURATION_SECS: f32 = 2.0; // Seconds of silence to end a segment
-const MIN_SEGMENT_SAMPLES: usize = 16000; // Minimum 1 second of audio to transcribe
+/// Minimum duration (1 second at 16kHz) below which we drop a recording as
+/// probably an accidental click.
+const MIN_SEGMENT_SAMPLES: usize = 16000;
 
-/// Start capturing audio from the default input device.
-/// Returns a receiver that yields completed audio segments.
-pub fn start_capture(app: AppHandle) -> Result<mpsc::Receiver<AudioSegment>, String> {
-    let (segment_tx, segment_rx) = mpsc::channel::<AudioSegment>();
+/// Throttle amplitude events to ~30Hz so we don't flood the frontend.
+const AMPLITUDE_EMIT_INTERVAL_MS: u128 = 33;
 
-    std::thread::spawn(move || {
-        if let Err(e) = run_capture_loop(segment_tx, app) {
-            error!("Audio capture error: {}", e);
-        }
-    });
-
-    Ok(segment_rx)
+/// Public handle to control recording and read state from Tauri commands.
+pub struct AudioController {
+    state: Arc<Mutex<CaptureState>>,
+    segment_tx: mpsc::Sender<AudioSegment>,
+    app: Arc<AppHandle>,
 }
 
-fn run_capture_loop(segment_tx: mpsc::Sender<AudioSegment>, app: AppHandle) -> Result<(), String> {
+impl AudioController {
+    /// Start accumulating audio into the recording buffer.
+    /// Idempotent: calling it while already recording is a no-op.
+    pub fn start_recording(&self) {
+        let mut state = self.state.lock().unwrap();
+        if state.recording {
+            return;
+        }
+        state.recording = true;
+        state.buffer.clear();
+        state.recording_start = Some(chrono::Local::now().format("%H:%M:%S").to_string());
+        info!("Recording started");
+        let _ = self.app.emit("recording-started", ());
+    }
+
+    /// Stop recording and ship the accumulated buffer to the transcription pipeline.
+    /// Returns the number of samples captured (0 if not recording or too short).
+    pub fn stop_recording(&self) -> usize {
+        let mut state = self.state.lock().unwrap();
+        if !state.recording {
+            return 0;
+        }
+        state.recording = false;
+        let buffer = std::mem::take(&mut state.buffer);
+        let timestamp = state.recording_start.take().unwrap_or_default();
+        drop(state); // release lock before emitting / sending
+
+        let len = buffer.len();
+        info!("Recording stopped: {} samples ({:.1}s)", len, len as f32 / 16000.0);
+        let _ = self.app.emit("recording-stopped", len);
+
+        if len < MIN_SEGMENT_SAMPLES {
+            info!("Recording too short (<1s), discarding");
+            return 0;
+        }
+
+        let segment = AudioSegment { samples: buffer, timestamp };
+        if let Err(e) = self.segment_tx.send(segment) {
+            error!("Failed to send audio segment: {}", e);
+            return 0;
+        }
+        len
+    }
+}
+
+/// Start capturing audio from the default input device.
+///
+/// Returns a receiver of finished segments and a controller to start/stop
+/// recording. The cpal input stream is kept alive inside a dedicated thread.
+pub fn start_capture(
+    app: AppHandle,
+) -> Result<(mpsc::Receiver<AudioSegment>, AudioController), String> {
+    let (segment_tx, segment_rx) = mpsc::channel::<AudioSegment>();
+
     let host = cpal::default_host();
     let device = host
         .default_input_device()
@@ -57,77 +112,94 @@ fn run_capture_loop(segment_tx: mpsc::Sender<AudioSegment>, app: AppHandle) -> R
         config.sample_format()
     );
 
-    // Shared state for accumulating audio
     let state = Arc::new(Mutex::new(CaptureState::new(
         source_sample_rate,
         source_channels,
     )));
-
-    let state_clone = state.clone();
-    let segment_tx_clone = segment_tx.clone();
     let app_handle = Arc::new(app);
-    let app_clone = app_handle.clone();
 
-    // Build input stream based on sample format
-    let stream = match config.sample_format() {
-        SampleFormat::F32 => device.build_input_stream(
-            &config.into(),
-            move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                process_audio_data(data, &state_clone, &segment_tx_clone, &app_clone);
-            },
-            |err| error!("Stream error: {}", err),
-            None,
-        ),
-        SampleFormat::I16 => {
-            let state_clone2 = state.clone();
-            let segment_tx_clone2 = segment_tx.clone();
-            let app_clone2 = app_handle.clone();
-            device.build_input_stream(
-                &config.into(),
-                move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                    let float_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
-                    process_audio_data(&float_data, &state_clone2, &segment_tx_clone2, &app_clone2);
+    let controller = AudioController {
+        state: state.clone(),
+        segment_tx: segment_tx.clone(),
+        app: app_handle.clone(),
+    };
+
+    // Spawn a thread that owns the cpal stream. cpal streams are !Send in
+    // some backends, so we keep the stream local to its thread and just park.
+    let state_for_thread = state.clone();
+    let app_for_thread = app_handle.clone();
+    let sample_format = config.sample_format();
+    let stream_config: cpal::StreamConfig = config.into();
+
+    std::thread::spawn(move || {
+        let build_result = match sample_format {
+            SampleFormat::F32 => device.build_input_stream(
+                &stream_config,
+                move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                    process_audio_data(data, &state_for_thread, &app_for_thread);
                 },
                 |err| error!("Stream error: {}", err),
                 None,
-            )
-        },
-        format => return Err(format!("Unsupported sample format: {:?}", format)),
-    }
-    .map_err(|e| format!("Failed to build input stream: {}", e))?;
+            ),
+            SampleFormat::I16 => device.build_input_stream(
+                &stream_config,
+                move |data: &[i16], _: &cpal::InputCallbackInfo| {
+                    let float_data: Vec<f32> =
+                        data.iter().map(|&s| s as f32 / 32768.0).collect();
+                    process_audio_data(&float_data, &state_for_thread, &app_for_thread);
+                },
+                |err| error!("Stream error: {}", err),
+                None,
+            ),
+            format => {
+                error!("Unsupported sample format: {:?}", format);
+                return;
+            }
+        };
 
-    stream
-        .play()
-        .map_err(|e| format!("Failed to start stream: {}", e))?;
+        let stream = match build_result {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to build input stream: {}", e);
+                return;
+            }
+        };
 
-    info!("Audio capture started");
+        if let Err(e) = stream.play() {
+            error!("Failed to start stream: {}", e);
+            return;
+        }
 
-    // Keep thread alive
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
+        info!("Audio capture started");
+
+        // Park forever to keep the stream alive.
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(3600));
+        }
+    });
+
+    Ok((segment_rx, controller))
 }
 
 struct CaptureState {
-    /// Accumulated mono 16kHz samples for the current segment
+    /// Accumulated mono 16kHz samples for the current recording (only filled when `recording`).
     buffer: Vec<f32>,
-    /// Whether we're currently detecting speech
-    is_speaking: bool,
-    /// When silence started (for gap detection)
-    silence_start: Option<Instant>,
-    /// When the current segment started
-    segment_start: Option<String>,
-    /// Source sample rate for resampling
+    /// True when the user is actively recording (between start_recording and stop_recording).
+    recording: bool,
+    /// Timestamp (HH:MM:SS) of the current recording.
+    recording_start: Option<String>,
+    /// Source sample rate (for resampling)
     source_sample_rate: u32,
     /// Source channel count
     source_channels: usize,
-    /// Resampler (created lazily if needed)
+    /// Resampler (created lazily if source != 16kHz)
     resampler: Option<SincFixedIn<f32>>,
+    /// Last amplitude emission, for throttling
+    last_amplitude_emit_ms: u128,
 }
 
 impl CaptureState {
     fn new(source_sample_rate: u32, source_channels: usize) -> Self {
-        // Create resampler if source rate differs from target 16kHz
         let resampler = if source_sample_rate != 16000 {
             let params = SincInterpolationParameters {
                 sinc_len: 256,
@@ -136,13 +208,12 @@ impl CaptureState {
                 oversampling_factor: 256,
                 window: WindowFunction::BlackmanHarris2,
             };
-            // Process in chunks of 1024 samples
             SincFixedIn::<f32>::new(
                 16000.0 / source_sample_rate as f64,
                 2.0,
                 params,
                 1024,
-                1, // mono output
+                1,
             )
             .ok()
         } else {
@@ -151,12 +222,12 @@ impl CaptureState {
 
         Self {
             buffer: Vec::new(),
-            is_speaking: false,
-            silence_start: None,
-            segment_start: None,
+            recording: false,
+            recording_start: None,
             source_sample_rate,
             source_channels,
             resampler,
+            last_amplitude_emit_ms: 0,
         }
     }
 }
@@ -164,12 +235,11 @@ impl CaptureState {
 fn process_audio_data(
     data: &[f32],
     state: &Arc<Mutex<CaptureState>>,
-    segment_tx: &mpsc::Sender<AudioSegment>,
     app: &Arc<AppHandle>,
 ) {
     let mut state = state.lock().unwrap();
 
-    // Convert to mono if stereo/multi-channel
+    // Downmix to mono if needed
     let mono: Vec<f32> = if state.source_channels > 1 {
         data.chunks(state.source_channels)
             .map(|frame| frame.iter().sum::<f32>() / state.source_channels as f32)
@@ -182,21 +252,17 @@ fn process_audio_data(
     let source_rate = state.source_sample_rate;
     let resampled = if let Some(ref mut resampler) = state.resampler {
         let mut output = Vec::new();
-        // Process in chunks that match the resampler's chunk size
         for chunk in mono.chunks(1024) {
             if chunk.len() < 1024 {
-                // Pad short chunks
                 let mut padded = chunk.to_vec();
                 padded.resize(1024, 0.0);
                 if let Ok(result) = resampler.process(&[&padded], None) {
-                    // Only take proportional output for the non-padded part
-                    let valid_len = (chunk.len() as f64 * 16000.0 / source_rate as f64) as usize;
+                    let valid_len =
+                        (chunk.len() as f64 * 16000.0 / source_rate as f64) as usize;
                     output.extend_from_slice(&result[0][..valid_len.min(result[0].len())]);
                 }
-            } else {
-                if let Ok(result) = resampler.process(&[chunk], None) {
-                    output.extend_from_slice(&result[0]);
-                }
+            } else if let Ok(result) = resampler.process(&[chunk], None) {
+                output.extend_from_slice(&result[0]);
             }
         }
         output
@@ -204,59 +270,32 @@ fn process_audio_data(
         mono
     };
 
-    // Calculate RMS energy
+    // RMS is always computed (for amplitude ticks). Used only as visual feedback.
     let rms = if resampled.is_empty() {
         0.0
     } else {
         (resampled.iter().map(|s| s * s).sum::<f32>() / resampled.len() as f32).sqrt()
     };
 
-    let speech_detected = rms > RMS_THRESHOLD;
-
-    if speech_detected {
-        if !state.is_speaking {
-            // Speech just started
-            state.is_speaking = true;
-            state.segment_start = Some(chrono::Local::now().format("%H:%M:%S").to_string());
-            let _ = app.emit("speech-status", "speaking");
-            info!("Speech started (RMS: {:.4})", rms);
-        }
-        state.silence_start = None;
+    // Accumulate samples only when recording
+    if state.recording {
         state.buffer.extend_from_slice(&resampled);
-    } else if state.is_speaking {
-        // We were speaking, now silence
-        state.buffer.extend_from_slice(&resampled);
-
-        if state.silence_start.is_none() {
-            state.silence_start = Some(Instant::now());
-        }
-
-        if let Some(silence_start) = state.silence_start {
-            let silence_duration = silence_start.elapsed().as_secs_f32();
-            if silence_duration >= SILENCE_DURATION_SECS {
-                // Segment complete
-                if state.buffer.len() >= MIN_SEGMENT_SAMPLES {
-                    let segment = AudioSegment {
-                        samples: std::mem::take(&mut state.buffer),
-                        timestamp: state.segment_start.take().unwrap_or_default(),
-                    };
-                    info!(
-                        "Segment complete: {} samples ({:.1}s)",
-                        segment.samples.len(),
-                        segment.samples.len() as f32 / 16000.0
-                    );
-                    if segment_tx.send(segment).is_err() {
-                        warn!("Failed to send audio segment");
-                    }
-                } else {
-                    info!("Segment too short, discarding");
-                    state.buffer.clear();
-                }
-                state.is_speaking = false;
-                state.silence_start = None;
-                state.segment_start = None;
-                let _ = app.emit("speech-status", "processing");
-            }
-        }
     }
+
+    // Throttled amplitude emission — even when not recording, so the user
+    // can see the mic is alive before they start.
+    let now_ms = chrono::Local::now().timestamp_millis() as u128;
+    if now_ms - state.last_amplitude_emit_ms >= AMPLITUDE_EMIT_INTERVAL_MS {
+        state.last_amplitude_emit_ms = now_ms;
+        let recording = state.recording;
+        drop(state); // release lock before emitting
+        let _ = app.emit("amplitude-tick", AmplitudePayload { rms, recording });
+    }
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AmplitudePayload {
+    rms: f32,
+    recording: bool,
 }
