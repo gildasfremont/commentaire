@@ -8,25 +8,27 @@
 </head>
 <body>
   <main class="layout">
-    <article id="document" class="document-column"></article>
-    <aside class="comment-column">
-      <div class="transcription-header">
+    <!-- Shared scroll container: document + margin scroll together -->
+    <div class="reading-area" id="reading-area">
+      <article id="document" class="document-column"></article>
+      <div class="comments-margin" id="comments-margin"></div>
+    </div>
+
+    <!-- Bottom controls bar -->
+    <div class="controls-bar">
+      <div class="status-group">
         <span class="mic-indicator idle" id="mic-indicator"></span>
         <span id="mic-label">Commentaires</span>
       </div>
       <div class="amplitude-track">
         <div class="amplitude-bar" id="amplitude-bar"></div>
       </div>
-      <div id="transcription-list" class="transcription-list"></div>
-      <div class="record-bar">
-        <button type="button" id="record-btn" class="record-btn">Enregistrer</button>
-        <span class="record-hint">Espace pour démarrer / arrêter</span>
-      </div>
-      <div class="simulate-bar">
-        <input type="text" id="simulate-input" placeholder="Taper une question ici et Entrée..." />
-      </div>
-    </aside>
+      <button type="button" id="record-btn" class="record-btn">Enregistrer</button>
+      <span class="record-hint">Espace</span>
+      <input type="text" id="simulate-input" placeholder="Simuler une question (Entrée)…" />
+    </div>
   </main>
+
   <script src="marked.min.js"></script>
   <script src="app.js"></script>
 </body>

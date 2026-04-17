@@ -1,15 +1,39 @@
+// Commentaire front-end — CLA-27 margin anchoring.
+//
+// Layout: a shared scrollable `.reading-area` contains the document on the
+// left and a `.comments-margin` on the right. Each comment is rendered as a
+// stack positioned absolutely at the y coordinate of its target paragraph.
+
+const DEFAULT_STATUS = "idle";
+
+// Track all comment stacks so we can restack on new arrivals.
+const stacksByParagraph = new Map(); // paragraphId -> HTMLElement
+
+// Index of Opus ack/response blocks keyed by questionId (to update in place).
+const responseBlocksById = new Map();
+
 document.addEventListener("DOMContentLoaded", async () => {
   const container = document.getElementById("document");
+  const readingArea = document.getElementById("reading-area");
+  const marginEl = document.getElementById("comments-margin");
 
-  // Load the markdown document
+  // Load and render the document
   const response = await fetch("document.md");
   const markdown = await response.text();
   container.innerHTML = marked.parse(markdown);
 
-  // Assign stable IDs to all paragraphs
+  // Assign stable paragraph IDs
   const paragraphs = container.querySelectorAll("p");
   paragraphs.forEach((p, index) => {
     p.id = `p-${index}`;
+    // Allow clicking the density marker to scroll to the first comment
+    p.addEventListener("click", (e) => {
+      if (e.offsetX < 0) {
+        // Click in the gutter where the marker sits
+        const stack = stacksByParagraph.get(p.id);
+        if (stack) stack.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
   });
 
   // --- Tauri integration ---
@@ -21,19 +45,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const { listen, emit } = window.__TAURI__.event;
   const { invoke } = window.__TAURI__.core;
 
-  // --- Scroll position tracking (unchanged) ---
+  // Scroll position: emit the paragraph visible at the center (same as before)
   let scrollTimeout = null;
-  container.addEventListener("scroll", () => {
+  readingArea.addEventListener("scroll", () => {
     if (scrollTimeout) clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => emitScrollPosition(container, emit), 200);
+    scrollTimeout = setTimeout(() => emitScrollPosition(container, readingArea, emit), 200);
   });
-  setTimeout(() => emitScrollPosition(container, emit), 500);
+  setTimeout(() => emitScrollPosition(container, readingArea, emit), 500);
 
-  // --- Classified segments ---
+  // Classified segments → anchored in margin
   await listen("classified-segment", (event) => {
-    const { segmentType, text, rawText, confidence, timestamp, paragraphId } = event.payload;
-    addClassifiedSegment(segmentType, text, rawText, confidence, timestamp, paragraphId);
-    // After classification, we're back to idle (unless a question triggered Opus)
+    const { segmentType, text, rawText, timestamp, paragraphId } = event.payload;
+    addClassifiedSegment(segmentType, text, rawText, timestamp, paragraphId, marginEl);
     setStatus("idle");
   });
 
@@ -47,31 +70,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateOpusResponse(questionId, text, isFinal);
   });
 
-  // --- Push-to-talk ---
+  // --- Push-to-talk controls ---
   const recordBtn = document.getElementById("record-btn");
   const amplitudeBar = document.getElementById("amplitude-bar");
-
   let isRecording = false;
 
   const toggleRecording = async () => {
     if (isRecording) {
-      // Stop: UI goes to processing immediately; backend will emit classified-segment later
       isRecording = false;
       recordBtn.classList.remove("recording");
       recordBtn.textContent = "Enregistrer";
       setStatus("processing");
       try {
         const sampleCount = await invoke("stop_recording");
-        if (sampleCount === 0) {
-          // Too short / aborted
-          setStatus("idle");
-        }
+        if (sampleCount === 0) setStatus("idle");
       } catch (err) {
         console.error("stop_recording failed", err);
         setStatus("idle");
       }
     } else {
-      // Start
       try {
         await invoke("start_recording");
         isRecording = true;
@@ -84,11 +101,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  if (recordBtn) {
-    recordBtn.addEventListener("click", toggleRecording);
-  }
+  if (recordBtn) recordBtn.addEventListener("click", toggleRecording);
 
-  // Spacebar shortcut — ignored when the user is typing in an input
   document.addEventListener("keydown", (e) => {
     if (e.code !== "Space") return;
     const tag = (e.target && e.target.tagName) || "";
@@ -97,8 +111,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     toggleRecording();
   });
 
-  // Backend confirms start/stop — use it to stay in sync if another path
-  // triggers them (e.g. future hardware button).
   await listen("recording-started", () => {
     isRecording = true;
     if (recordBtn) {
@@ -114,40 +126,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       recordBtn.classList.remove("recording");
       recordBtn.textContent = "Enregistrer";
     }
-    // Status will transition to "processing" (set above) or stay recording
-    // if the backend rejected the stop (too short). setStatus("processing")
-    // already happened in toggleRecording.
   });
 
-  // Amplitude ticks (30Hz) update the visual bar
   await listen("amplitude-tick", (event) => {
     const { rms, recording } = event.payload;
     updateAmplitude(amplitudeBar, rms, recording);
   });
 
-  // --- Simulate question via input field (kept for testing without mic) ---
+  // Simulate-question input (for testing without mic)
   const simInput = document.getElementById("simulate-input");
   if (simInput) {
     simInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && simInput.value.trim()) {
-        const visibleP = getVisibleParagraph(container);
-        if (visibleP) {
+        const p = getVisibleParagraph(container, readingArea);
+        if (p) {
           invoke("simulate_question", {
             text: simInput.value.trim(),
-            paragraphId: visibleP.id,
+            paragraphId: p.id,
           });
           simInput.value = "";
         }
       }
     });
   }
+
+  setStatus(DEFAULT_STATUS);
 });
 
 /**
  * Emit the current scroll position with paragraph ID and text.
  */
-function emitScrollPosition(container, emit) {
-  const p = getVisibleParagraph(container);
+function emitScrollPosition(container, readingArea, emit) {
+  const p = getVisibleParagraph(container, readingArea);
   if (p) {
     emit("scroll-position", {
       paragraphId: p.id,
@@ -157,16 +167,15 @@ function emitScrollPosition(container, emit) {
 }
 
 /**
- * Find the paragraph closest to the vertical center.
+ * Find the paragraph closest to the vertical center of the reading area.
  */
-function getVisibleParagraph(container) {
+function getVisibleParagraph(container, readingArea) {
   const paragraphs = container.querySelectorAll("p[id]");
-  const containerRect = container.getBoundingClientRect();
-  const centerY = containerRect.top + containerRect.height / 2;
+  const areaRect = readingArea.getBoundingClientRect();
+  const centerY = areaRect.top + areaRect.height / 2;
 
   let closest = null;
   let closestDist = Infinity;
-
   for (const p of paragraphs) {
     const rect = p.getBoundingClientRect();
     const dist = Math.abs(rect.top + rect.height / 2 - centerY);
@@ -179,103 +188,153 @@ function getVisibleParagraph(container) {
 }
 
 /**
- * Add a classified segment to the sidebar.
+ * Get (or create) the stack element for a given paragraph, positioned at the
+ * paragraph's y coordinate within the reading area.
  */
-function addClassifiedSegment(type, text, rawText, confidence, timestamp, paragraphId) {
-  const list = document.getElementById("transcription-list");
+function getOrCreateStack(paragraphId, marginEl) {
+  let stack = stacksByParagraph.get(paragraphId);
+  if (stack) return stack;
 
-  const segment = document.createElement("div");
-  segment.className = `transcription-segment segment-${type}`;
+  stack = document.createElement("div");
+  stack.className = "comment-stack";
+  stack.dataset.paragraphId = paragraphId;
 
-  if (type === "question") {
-    segment.dataset.questionAnchor = "true";
+  const targetP = document.getElementById(paragraphId);
+  if (targetP) {
+    // offsetTop is relative to the positioned ancestor, which is .reading-area.
+    // .comments-margin is in the same positioned ancestor chain, so aligning
+    // the stack's top with offsetTop puts it next to the paragraph.
+    const top = targetP.offsetTop;
+    stack.style.top = `${top}px`;
   }
 
-  const meta = document.createElement("div");
-  meta.className = "segment-meta";
-
-  const typeLabel = document.createElement("span");
-  typeLabel.className = `segment-type-label type-${type}`;
-  typeLabel.textContent = type === "question" ? "? Question" :
-                          type === "instruction" ? "! Instruction" :
-                          "Commentaire";
-
-  const metaInfo = document.createElement("span");
-  metaInfo.textContent = ` · ${timestamp} · ${paragraphId}`;
-
-  meta.appendChild(typeLabel);
-  meta.appendChild(metaInfo);
-
-  const content = document.createElement("div");
-  content.className = "segment-text";
-  content.textContent = text || rawText;
-
-  segment.appendChild(meta);
-  segment.appendChild(content);
-  list.appendChild(segment);
-
-  list.scrollTop = list.scrollHeight;
+  marginEl.appendChild(stack);
+  stacksByParagraph.set(paragraphId, stack);
+  return stack;
 }
 
 /**
- * Show a Haiku acknowledgment under the latest question.
+ * Update density marker (count + question flag) on the target paragraph.
+ */
+function updateDensityMarker(paragraphId) {
+  const p = document.getElementById(paragraphId);
+  if (!p) return;
+  const stack = stacksByParagraph.get(paragraphId);
+  if (!stack) return;
+  const comments = stack.querySelectorAll(".comment-block");
+  const count = comments.length;
+  if (count === 0) {
+    p.classList.remove("has-comments", "has-questions");
+    p.removeAttribute("data-comment-count");
+    return;
+  }
+  p.classList.add("has-comments");
+  p.setAttribute("data-comment-count", count);
+  const hasQuestion = stack.querySelector(".type-question") !== null;
+  p.classList.toggle("has-questions", hasQuestion);
+}
+
+/**
+ * Add a classified segment to its paragraph's stack.
+ */
+function addClassifiedSegment(type, text, rawText, timestamp, paragraphId, marginEl) {
+  const stack = getOrCreateStack(paragraphId, marginEl);
+
+  const block = document.createElement("div");
+  block.className = `comment-block type-${type}`;
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const typeLabel = document.createElement("span");
+  typeLabel.className = "type-label";
+  typeLabel.textContent =
+    type === "question" ? "Question" :
+    type === "instruction" ? "Instruction" :
+    "Commentaire";
+  const metaTime = document.createElement("span");
+  metaTime.textContent = timestamp;
+  meta.appendChild(typeLabel);
+  meta.appendChild(metaTime);
+
+  const textEl = document.createElement("div");
+  textEl.className = "text";
+  textEl.textContent = text || rawText;
+
+  block.appendChild(meta);
+  block.appendChild(textEl);
+  stack.appendChild(block);
+
+  // For questions, remember this block as the anchor for ack/opus responses.
+  if (type === "question") {
+    block.dataset.role = "question-anchor";
+  }
+
+  updateDensityMarker(paragraphId);
+}
+
+/**
+ * Show a Haiku acknowledgment below the most recent question, in the same stack.
  */
 function showAcknowledgment(questionId, text) {
-  const list = document.getElementById("transcription-list");
+  // Find the most recent question block (no explicit linking yet)
+  const anchor = findLatestQuestionAnchor();
+  if (!anchor) return;
+  const stack = anchor.parentElement;
 
-  let responseDiv = document.getElementById(`response-${questionId}`);
+  let responseDiv = responseBlocksById.get(questionId);
   if (!responseDiv) {
     responseDiv = document.createElement("div");
-    responseDiv.id = `response-${questionId}`;
     responseDiv.className = "ai-response ack-state";
-    list.appendChild(responseDiv);
+    stack.appendChild(responseDiv);
+    responseBlocksById.set(questionId, responseDiv);
+  } else {
+    responseDiv.className = "ai-response ack-state";
   }
 
   responseDiv.innerHTML = "";
   const label = document.createElement("div");
   label.className = "response-label";
-  label.textContent = "...";
+  label.textContent = "Accusé";
   const content = document.createElement("div");
-  content.className = "response-text ack-text";
+  content.className = "text";
   content.textContent = text;
-
   responseDiv.appendChild(label);
   responseDiv.appendChild(content);
-  list.scrollTop = list.scrollHeight;
 }
 
 /**
- * Update the Opus response (replaces ack).
+ * Update (or create) the Opus response. Replaces the ack in place.
  */
 function updateOpusResponse(questionId, text, isFinal) {
-  const list = document.getElementById("transcription-list");
-
-  let responseDiv = document.getElementById(`response-${questionId}`);
+  let responseDiv = responseBlocksById.get(questionId);
   if (!responseDiv) {
+    const anchor = findLatestQuestionAnchor();
+    if (!anchor) return;
+    const stack = anchor.parentElement;
     responseDiv = document.createElement("div");
-    responseDiv.id = `response-${questionId}`;
-    responseDiv.className = "ai-response";
-    list.appendChild(responseDiv);
+    stack.appendChild(responseDiv);
+    responseBlocksById.set(questionId, responseDiv);
   }
 
   responseDiv.className = isFinal ? "ai-response opus-final" : "ai-response opus-streaming";
   responseDiv.innerHTML = "";
-
   const label = document.createElement("div");
   label.className = "response-label";
-  label.textContent = isFinal ? "Opus" : "Opus...";
+  label.textContent = isFinal ? "Opus" : "Opus…";
   const content = document.createElement("div");
-  content.className = "response-text opus-text";
+  content.className = "text";
   content.textContent = text;
-
   responseDiv.appendChild(label);
   responseDiv.appendChild(content);
-  list.scrollTop = list.scrollHeight;
+}
+
+function findLatestQuestionAnchor() {
+  const anchors = document.querySelectorAll('.comment-block[data-role="question-anchor"]');
+  return anchors.length ? anchors[anchors.length - 1] : null;
 }
 
 /**
- * Update the status indicator.
- * States: idle | recording | processing | classifying
+ * Update the status indicator in the bottom bar.
  */
 function setStatus(status) {
   const indicator = document.getElementById("mic-indicator");
@@ -298,13 +357,9 @@ function setStatus(status) {
   }
 }
 
-/**
- * Drive the amplitude bar from the backend RMS events.
- * RMS typically in [0, 0.3] for normal speech; map to 0-100% with a soft ceiling.
- */
 function updateAmplitude(bar, rms, recording) {
   if (!bar) return;
-  const capped = Math.min(1, rms * 5); // rms 0.2 ≈ full bar
+  const capped = Math.min(1, rms * 5);
   bar.style.width = `${Math.round(capped * 100)}%`;
   bar.classList.toggle("active", recording);
 }
