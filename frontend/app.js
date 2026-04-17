@@ -1,13 +1,9 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const container = document.getElementById("document");
-  const transcriptionList = document.getElementById("transcription-list");
-  const micIndicator = document.getElementById("mic-indicator");
 
   // Load the markdown document
   const response = await fetch("document.md");
   const markdown = await response.text();
-
-  // Render markdown to HTML
   container.innerHTML = marked.parse(markdown);
 
   // Assign stable IDs to all paragraphs
@@ -25,47 +21,111 @@ document.addEventListener("DOMContentLoaded", async () => {
   const { listen, emit } = window.__TAURI__.event;
   const { invoke } = window.__TAURI__.core;
 
-  // Mic indicator: pulse while active
-  micIndicator.classList.add("active");
-
-  // Track visible paragraph and emit scroll position with text
+  // --- Scroll position tracking (unchanged) ---
   let scrollTimeout = null;
   container.addEventListener("scroll", () => {
     if (scrollTimeout) clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      emitScrollPosition(container, emit);
-    }, 200);
+    scrollTimeout = setTimeout(() => emitScrollPosition(container, emit), 200);
   });
-
-  // Emit initial scroll position
   setTimeout(() => emitScrollPosition(container, emit), 500);
 
-  // Listen for classified segments (from Haiku)
+  // --- Classified segments ---
   await listen("classified-segment", (event) => {
     const { segmentType, text, rawText, confidence, timestamp, paragraphId } = event.payload;
     addClassifiedSegment(segmentType, text, rawText, confidence, timestamp, paragraphId);
-    // Reset speech indicator after transcription completes
-    setTimeout(() => updateSpeechStatus("idle"), 500);
+    // After classification, we're back to idle (unless a question triggered Opus)
+    setStatus("idle");
   });
 
-  // Listen for acknowledgment (Haiku, fast)
   await listen("ack-response", (event) => {
     const { text, questionId } = event.payload;
     showAcknowledgment(questionId, text);
   });
 
-  // Listen for Opus response (streamed)
   await listen("opus-response", (event) => {
     const { text, questionId, isFinal } = event.payload;
     updateOpusResponse(questionId, text, isFinal);
   });
 
-  // Speech status indicator
-  await listen("speech-status", (event) => {
-    updateSpeechStatus(event.payload);
+  // --- Push-to-talk ---
+  const recordBtn = document.getElementById("record-btn");
+  const amplitudeBar = document.getElementById("amplitude-bar");
+
+  let isRecording = false;
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      // Stop: UI goes to processing immediately; backend will emit classified-segment later
+      isRecording = false;
+      recordBtn.classList.remove("recording");
+      recordBtn.textContent = "Enregistrer";
+      setStatus("processing");
+      try {
+        const sampleCount = await invoke("stop_recording");
+        if (sampleCount === 0) {
+          // Too short / aborted
+          setStatus("idle");
+        }
+      } catch (err) {
+        console.error("stop_recording failed", err);
+        setStatus("idle");
+      }
+    } else {
+      // Start
+      try {
+        await invoke("start_recording");
+        isRecording = true;
+        recordBtn.classList.add("recording");
+        recordBtn.textContent = "Arrêter";
+        setStatus("recording");
+      } catch (err) {
+        console.error("start_recording failed", err);
+      }
+    }
+  };
+
+  if (recordBtn) {
+    recordBtn.addEventListener("click", toggleRecording);
+  }
+
+  // Spacebar shortcut — ignored when the user is typing in an input
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "Space") return;
+    const tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    e.preventDefault();
+    toggleRecording();
   });
 
-  // Simulate question via input field
+  // Backend confirms start/stop — use it to stay in sync if another path
+  // triggers them (e.g. future hardware button).
+  await listen("recording-started", () => {
+    isRecording = true;
+    if (recordBtn) {
+      recordBtn.classList.add("recording");
+      recordBtn.textContent = "Arrêter";
+    }
+    setStatus("recording");
+  });
+
+  await listen("recording-stopped", () => {
+    isRecording = false;
+    if (recordBtn) {
+      recordBtn.classList.remove("recording");
+      recordBtn.textContent = "Enregistrer";
+    }
+    // Status will transition to "processing" (set above) or stay recording
+    // if the backend rejected the stop (too short). setStatus("processing")
+    // already happened in toggleRecording.
+  });
+
+  // Amplitude ticks (30Hz) update the visual bar
+  await listen("amplitude-tick", (event) => {
+    const { rms, recording } = event.payload;
+    updateAmplitude(amplitudeBar, rms, recording);
+  });
+
+  // --- Simulate question via input field (kept for testing without mic) ---
   const simInput = document.getElementById("simulate-input");
   if (simInput) {
     simInput.addEventListener("keydown", (e) => {
@@ -127,7 +187,6 @@ function addClassifiedSegment(type, text, rawText, confidence, timestamp, paragr
   const segment = document.createElement("div");
   segment.className = `transcription-segment segment-${type}`;
 
-  // For questions, add a data attribute for ack/response targeting
   if (type === "question") {
     segment.dataset.questionAnchor = "true";
   }
@@ -164,7 +223,6 @@ function addClassifiedSegment(type, text, rawText, confidence, timestamp, paragr
 function showAcknowledgment(questionId, text) {
   const list = document.getElementById("transcription-list");
 
-  // Create or find the response container for this question
   let responseDiv = document.getElementById(`response-${questionId}`);
   if (!responseDiv) {
     responseDiv = document.createElement("div");
@@ -174,18 +232,15 @@ function showAcknowledgment(questionId, text) {
   }
 
   responseDiv.innerHTML = "";
-
   const label = document.createElement("div");
   label.className = "response-label";
   label.textContent = "...";
-
   const content = document.createElement("div");
   content.className = "response-text ack-text";
   content.textContent = text;
 
   responseDiv.appendChild(label);
   responseDiv.appendChild(content);
-
   list.scrollTop = list.scrollHeight;
 }
 
@@ -203,43 +258,53 @@ function updateOpusResponse(questionId, text, isFinal) {
     list.appendChild(responseDiv);
   }
 
-  // Transition from ack to response
   responseDiv.className = isFinal ? "ai-response opus-final" : "ai-response opus-streaming";
-
   responseDiv.innerHTML = "";
 
   const label = document.createElement("div");
   label.className = "response-label";
   label.textContent = isFinal ? "Opus" : "Opus...";
-
   const content = document.createElement("div");
   content.className = "response-text opus-text";
   content.textContent = text;
 
   responseDiv.appendChild(label);
   responseDiv.appendChild(content);
-
   list.scrollTop = list.scrollHeight;
 }
 
 /**
- * Update the speech status indicator.
- * States: "idle" (grey dot), "speaking" (red pulse), "processing" (amber)
+ * Update the status indicator.
+ * States: idle | recording | processing | classifying
  */
-function updateSpeechStatus(status) {
+function setStatus(status) {
   const indicator = document.getElementById("mic-indicator");
   const label = document.getElementById("mic-label");
   if (!indicator) return;
 
   indicator.className = "mic-indicator";
-  if (status === "speaking") {
-    indicator.classList.add("speaking");
-    if (label) label.textContent = "Parole...";
+  if (status === "recording") {
+    indicator.classList.add("recording");
+    if (label) label.textContent = "Enregistrement…";
   } else if (status === "processing") {
     indicator.classList.add("processing");
-    if (label) label.textContent = "Transcription...";
+    if (label) label.textContent = "Transcription…";
+  } else if (status === "classifying") {
+    indicator.classList.add("processing");
+    if (label) label.textContent = "Classification…";
   } else {
-    indicator.classList.add("active");
+    indicator.classList.add("idle");
     if (label) label.textContent = "Commentaires";
   }
+}
+
+/**
+ * Drive the amplitude bar from the backend RMS events.
+ * RMS typically in [0, 0.3] for normal speech; map to 0-100% with a soft ceiling.
+ */
+function updateAmplitude(bar, rms, recording) {
+  if (!bar) return;
+  const capped = Math.min(1, rms * 5); // rms 0.2 ≈ full bar
+  bar.style.width = `${Math.round(capped * 100)}%`;
+  bar.classList.toggle("active", recording);
 }
