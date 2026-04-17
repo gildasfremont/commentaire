@@ -130,13 +130,22 @@ body {
 }
 
 .mic-indicator.active {
+  background: #22c55e;
+}
+
+.mic-indicator.speaking {
   background: #e53e3e;
-  animation: pulse 2s ease-in-out infinite;
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+.mic-indicator.processing {
+  background: #f59e0b;
+  animation: pulse 1s ease-in-out infinite;
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 
 .transcription-list {
@@ -252,11 +261,24 @@ body {
   line-height: 1.6;
 }
 
-/* Simulate question hint */
-.simulate-hint {
+/* Simulate question input */
+.simulate-bar {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #e0ddd8;
+}
+
+.simulate-bar input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 0.65rem;
-  color: #bbb;
-  text-align: center;
-  padding: 0.5rem;
+  font-size: 0.8rem;
+  background: #fff;
+  outline: none;
+}
+
+.simulate-bar input:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.15);
 }

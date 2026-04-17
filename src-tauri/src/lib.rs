@@ -110,7 +110,7 @@ pub fn run() {
             info!("Whisper model path: {:?}", model_path);
 
             // Start audio capture pipeline
-            let segment_rx = audio::start_capture()
+            let segment_rx = audio::start_capture(app.handle().clone())
                 .expect("Failed to start audio capture");
 
             // Start transcription pipeline

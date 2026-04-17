@@ -111,8 +111,7 @@ fn generate_acknowledgment(question: &str, paragraph_text: &str) -> Result<Strin
     let start = std::time::Instant::now();
 
     let output = Command::new("claude")
-        .args(["-p", "--model", "haiku", "--output-format", "text"])
-        .env("CLAUDE_SYSTEM_PROMPT", ACK_SYSTEM_PROMPT)
+        .args(["-p", "--model", "haiku", "--output-format", "text", "--system-prompt", ACK_SYSTEM_PROMPT])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -163,8 +162,7 @@ fn generate_opus_response(
     let start = std::time::Instant::now();
 
     let mut child = Command::new("claude")
-        .args(["-p", "--model", "opus", "--output-format", "stream-json"])
-        .env("CLAUDE_SYSTEM_PROMPT", OPUS_SYSTEM_PROMPT)
+        .args(["-p", "--model", "opus", "--output-format", "stream-json", "--system-prompt", OPUS_SYSTEM_PROMPT])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

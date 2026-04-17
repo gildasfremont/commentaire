@@ -5,6 +5,7 @@ use rubato::{SincFixedIn, SincInterpolationParameters, SincInterpolationType, Re
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use tauri::{AppHandle, Emitter};
 
 /// A completed audio segment ready for transcription.
 pub struct AudioSegment {
@@ -21,11 +22,11 @@ const MIN_SEGMENT_SAMPLES: usize = 16000; // Minimum 1 second of audio to transc
 
 /// Start capturing audio from the default input device.
 /// Returns a receiver that yields completed audio segments.
-pub fn start_capture() -> Result<mpsc::Receiver<AudioSegment>, String> {
+pub fn start_capture(app: AppHandle) -> Result<mpsc::Receiver<AudioSegment>, String> {
     let (segment_tx, segment_rx) = mpsc::channel::<AudioSegment>();
 
     std::thread::spawn(move || {
-        if let Err(e) = run_capture_loop(segment_tx) {
+        if let Err(e) = run_capture_loop(segment_tx, app) {
             error!("Audio capture error: {}", e);
         }
     });
@@ -33,7 +34,7 @@ pub fn start_capture() -> Result<mpsc::Receiver<AudioSegment>, String> {
     Ok(segment_rx)
 }
 
-fn run_capture_loop(segment_tx: mpsc::Sender<AudioSegment>) -> Result<(), String> {
+fn run_capture_loop(segment_tx: mpsc::Sender<AudioSegment>, app: AppHandle) -> Result<(), String> {
     let host = cpal::default_host();
     let device = host
         .default_input_device()
@@ -64,26 +65,33 @@ fn run_capture_loop(segment_tx: mpsc::Sender<AudioSegment>) -> Result<(), String
 
     let state_clone = state.clone();
     let segment_tx_clone = segment_tx.clone();
+    let app_handle = Arc::new(app);
+    let app_clone = app_handle.clone();
 
     // Build input stream based on sample format
     let stream = match config.sample_format() {
         SampleFormat::F32 => device.build_input_stream(
             &config.into(),
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                process_audio_data(data, &state_clone, &segment_tx_clone);
+                process_audio_data(data, &state_clone, &segment_tx_clone, &app_clone);
             },
             |err| error!("Stream error: {}", err),
             None,
         ),
-        SampleFormat::I16 => device.build_input_stream(
-            &config.into(),
-            move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                let float_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
-                process_audio_data(&float_data, &state_clone, &segment_tx_clone);
-            },
-            |err| error!("Stream error: {}", err),
-            None,
-        ),
+        SampleFormat::I16 => {
+            let state_clone2 = state.clone();
+            let segment_tx_clone2 = segment_tx.clone();
+            let app_clone2 = app_handle.clone();
+            device.build_input_stream(
+                &config.into(),
+                move |data: &[i16], _: &cpal::InputCallbackInfo| {
+                    let float_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
+                    process_audio_data(&float_data, &state_clone2, &segment_tx_clone2, &app_clone2);
+                },
+                |err| error!("Stream error: {}", err),
+                None,
+            )
+        },
         format => return Err(format!("Unsupported sample format: {:?}", format)),
     }
     .map_err(|e| format!("Failed to build input stream: {}", e))?;
@@ -157,6 +165,7 @@ fn process_audio_data(
     data: &[f32],
     state: &Arc<Mutex<CaptureState>>,
     segment_tx: &mpsc::Sender<AudioSegment>,
+    app: &Arc<AppHandle>,
 ) {
     let mut state = state.lock().unwrap();
 
@@ -209,6 +218,7 @@ fn process_audio_data(
             // Speech just started
             state.is_speaking = true;
             state.segment_start = Some(chrono::Local::now().format("%H:%M:%S").to_string());
+            let _ = app.emit("speech-status", "speaking");
             info!("Speech started (RMS: {:.4})", rms);
         }
         state.silence_start = None;
@@ -245,6 +255,7 @@ fn process_audio_data(
                 state.is_speaking = false;
                 state.silence_start = None;
                 state.segment_start = None;
+                let _ = app.emit("speech-status", "processing");
             }
         }
     }

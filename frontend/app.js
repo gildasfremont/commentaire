@@ -44,6 +44,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await listen("classified-segment", (event) => {
     const { segmentType, text, rawText, confidence, timestamp, paragraphId } = event.payload;
     addClassifiedSegment(segmentType, text, rawText, confidence, timestamp, paragraphId);
+    // Reset speech indicator after transcription completes
+    setTimeout(() => updateSpeechStatus("idle"), 500);
   });
 
   // Listen for acknowledgment (Haiku, fast)
@@ -58,20 +60,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateOpusResponse(questionId, text, isFinal);
   });
 
-  // Simulate question shortcut: Ctrl+Q
-  document.addEventListener("keydown", (e) => {
-    if (e.ctrlKey && e.key === "q") {
-      e.preventDefault();
-      const visibleP = getVisibleParagraph(container);
-      const question = prompt("Simuler une question :", "Pourquoi il dit ça ici ?");
-      if (question && visibleP) {
-        invoke("simulate_question", {
-          text: question,
-          paragraphId: visibleP.id,
-        });
-      }
-    }
+  // Speech status indicator
+  await listen("speech-status", (event) => {
+    updateSpeechStatus(event.payload);
   });
+
+  // Simulate question via input field
+  const simInput = document.getElementById("simulate-input");
+  if (simInput) {
+    simInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && simInput.value.trim()) {
+        const visibleP = getVisibleParagraph(container);
+        if (visibleP) {
+          invoke("simulate_question", {
+            text: simInput.value.trim(),
+            paragraphId: visibleP.id,
+          });
+          simInput.value = "";
+        }
+      }
+    });
+  }
 });
 
 /**
@@ -211,4 +220,26 @@ function updateOpusResponse(questionId, text, isFinal) {
   responseDiv.appendChild(content);
 
   list.scrollTop = list.scrollHeight;
+}
+
+/**
+ * Update the speech status indicator.
+ * States: "idle" (grey dot), "speaking" (red pulse), "processing" (amber)
+ */
+function updateSpeechStatus(status) {
+  const indicator = document.getElementById("mic-indicator");
+  const label = document.getElementById("mic-label");
+  if (!indicator) return;
+
+  indicator.className = "mic-indicator";
+  if (status === "speaking") {
+    indicator.classList.add("speaking");
+    if (label) label.textContent = "Parole...";
+  } else if (status === "processing") {
+    indicator.classList.add("processing");
+    if (label) label.textContent = "Transcription...";
+  } else {
+    indicator.classList.add("active");
+    if (label) label.textContent = "Commentaires";
+  }
 }

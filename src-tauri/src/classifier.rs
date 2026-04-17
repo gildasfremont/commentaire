@@ -80,8 +80,8 @@ pub fn classify_segment(
             "-p",
             "--model", "haiku",
             "--output-format", "text",
+            "--system-prompt", SYSTEM_PROMPT,
         ])
-        .env("CLAUDE_SYSTEM_PROMPT", SYSTEM_PROMPT)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
