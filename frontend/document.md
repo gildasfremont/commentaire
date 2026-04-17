@@ -1,89 +1,81 @@
-# De la lecture silencieuse à la conversation avec le texte
+# Le zéro déchet ne sauvera pas le climat
 
-## L'invention du silence
+## Une distraction bien rangée
 
-Pendant des siècles, lire signifiait parler. Dans l'Antiquité, la lecture à voix haute était la norme. Saint Augustin raconte dans ses Confessions sa stupéfaction en découvrant Ambroise de Milan lisant en silence : ses yeux parcouraient les pages, son esprit en pénétrait le sens, mais sa voix et sa langue se reposaient. Cette observation, banale pour nous, était si remarquable au IVe siècle qu'Augustin jugea nécessaire de la consigner.
+Il y a quelque chose d'étrange dans la manière dont la France a décidé de combattre la crise climatique. On a construit tout un discours moral autour des sacs plastiques, des pailles en carton et des bocaux Weck remplis de lentilles bio. On a mis en scène des familles qui tiennent dans un bocal tous leurs déchets annuels, comme s'il s'agissait d'un exploit olympique. On a transformé une question politique en concours de vertu domestique.
 
-La lecture silencieuse s'est imposée progressivement entre le VIIe et le IXe siècle, d'abord dans les monastères irlandais et anglo-saxons, puis dans l'ensemble de l'Europe lettrée. Ce changement n'était pas qu'une question de confort acoustique. Il a transformé le rapport entre le lecteur et le texte. Lire en silence, c'est être seul avec les mots. C'est pouvoir revenir en arrière, s'arrêter, réfléchir, sans que le flux de la voix impose son tempo.
+Le problème n'est pas que ces gestes soient mauvais. Trier ses déchets, éviter les produits suremballés, composter ses épluchures : tout cela est parfaitement raisonnable. Le problème, c'est qu'on a fini par croire que c'était la réponse. On s'occupe du bocal pendant que la maison brûle.
 
-Cette solitude du lecteur a produit des choses extraordinaires. La pensée critique, la méditation personnelle, l'interprétation libre des textes sacrés, et finalement la Réforme protestante elle-même, sont toutes filles de la lecture silencieuse. Quand on lit à voix haute devant un groupe, le sens est partagé, négocié collectivement. Quand on lit en silence, le sens devient personnel. Le texte parle à chacun différemment.
+Ce texte défend une thèse inconfortable : l'essentiel des discours sur le "zéro déchet individuel" est une diversion. Il déplace la responsabilité des acteurs économiques vers le consommateur, il donne l'illusion du progrès sans rien changer aux structures, et il épuise des énergies militantes qui seraient plus utiles ailleurs.
 
-## Le paradoxe du lecteur moderne
+## Les chiffres qu'on ne veut pas voir
 
-Aujourd'hui, nous lisons plus que jamais. Les écrans ont multiplié la quantité de texte que nous consommons quotidiennement. Un adulte moyen lit entre 50 000 et 100 000 mots par jour si l'on compte les emails, les messages, les articles, les notifications. Nos ancêtres du XVIIIe siècle, même lettrés, n'en lisaient probablement pas le dixième.
+Regardons froidement les proportions. Les émissions de gaz à effet de serre de la France, en 2019, étaient d'environ 441 millions de tonnes équivalent CO2. Sur ce total, les ménages représentent directement environ 25%, essentiellement via le chauffage et la voiture. L'industrie pèse 19%, l'agriculture 19%, les transports (hors voiture particulière) 12%, l'énergie 10%, le tertiaire 8%.
 
-Mais cette abondance cache un appauvrissement. Nous lisons vite, en diagonale, en cherchant l'information plutôt que la compréhension. La lecture profonde, celle qui engage la mémoire de travail, active les émotions et construit des modèles mentaux complexes, est devenue un effort conscient. Il faut se forcer pour lire lentement. L'environnement numérique, avec ses liens, ses notifications et sa disponibilité infinie de contenus alternatifs, pousse constamment vers la surface.
+Mais ces chiffres masquent l'essentiel. Car une grande part des "émissions ménages" sont en réalité des décisions d'infrastructure : le bâti thermique, la dépendance à la voiture, le mix énergétique. Un habitant d'une ville dense avec un réseau de métro développé émet structurellement moins qu'un habitant d'une zone pavillonnaire mal desservie, quelle que soit sa vertu personnelle. Ce n'est pas une question de choix individuel. C'est de l'aménagement du territoire.
 
-Maryanne Wolf, neuroscientifique et spécialiste de la lecture, a documenté ce phénomène dans ses travaux. Le cerveau lecteur se réorganise en fonction de ce qu'on lui demande. Un cerveau habitué au skimming perd progressivement sa capacité à la lecture profonde. Ce n'est pas une métaphore : les circuits neuronaux de la lecture attentive s'atrophient quand ils ne sont pas sollicités, exactement comme un muscle au repos.
+Quand on regarde ce que le consommateur peut vraiment moduler par sa vertu quotidienne — le tri des déchets, l'évitement du plastique, l'achat en vrac — on arrive à moins de 2% des émissions totales. C'est un chiffre dont personne ne parle parce qu'il ruine l'histoire qu'on raconte. Le zéro déchet, dans sa version domestique héroïque, agit sur 2% du problème.
 
-Le paradoxe est donc celui-ci : nous avons plus de textes disponibles que jamais, mais nous sommes en train de perdre la capacité cognitive de les lire vraiment. C'est comme avoir une bibliothèque infinie dans laquelle on ne ferait que lire les quatrièmes de couverture.
+## Le transfert de responsabilité
 
-## Ce que nous faisons quand nous lisons vraiment
+Il faut se rappeler d'où vient cette insistance sur la responsabilité individuelle. En 2004, BP lance une campagne de communication massive pour populariser le concept d'empreinte carbone individuelle. L'idée : transférer l'attention du public depuis les producteurs de pétrole vers les consommateurs. Le calculateur d'empreinte carbone que tout le monde utilise aujourd'hui est le produit marketing d'une compagnie pétrolière qui voulait qu'on s'occupe d'autre chose que d'elle.
 
-La lecture profonde n'est pas passive. Quand nous lisons réellement un texte complexe, notre cerveau fait un travail considérable. Il construit une représentation mentale du monde décrit par le texte. Il fait des inférences, comble les lacunes, anticipe la suite. Il connecte ce qu'il lit à ce qu'il sait déjà, à ses expériences, à d'autres textes.
+Cette opération a magnifiquement réussi. Aujourd'hui, un Français moyen, interrogé sur la crise climatique, répond spontanément en termes de petits gestes personnels. Il culpabilise pour son billet d'avion, pour son steak, pour son sachet plastique. Il ressent rarement la même colère dirigée vers les 100 entreprises qui ont produit 71% des émissions industrielles depuis 1988.
 
-Les meilleurs lecteurs sont ceux qui dialoguent avec le texte. Ils posent des questions, formulent des objections, identifient les présupposés. Mortimer Adler, dans son classique "How to Read a Book", distinguait quatre niveaux de lecture : élémentaire, inspectionnelle, analytique et syntopique. La lecture analytique, celle qui interroge le texte, est selon lui le minimum pour prétendre avoir véritablement lu un livre.
+Ce n'est pas un accident. C'est le produit attendu d'une stratégie de communication vieille de vingt ans, qui a transformé les victimes du système en gestionnaires culpabilisés de leur propre consommation. Le capitalisme fossile a compris qu'il était plus efficace de vendre aux gens leur propre vertu que de se défendre frontalement.
 
-Cette activité mentale intense se manifeste physiquement chez les lecteurs engagés. Ils annotent les marges, soulignent des passages, écrivent des commentaires. Les marginalia des grands lecteurs sont parfois aussi intéressantes que les textes qu'elles accompagnent. Les annotations de Fermat dans son exemplaire de l'Arithmetica de Diophante ont occupé les mathématiciens pendant trois siècles. Celles de Coleridge sur les textes philosophiques allemands constituent un corpus intellectuel à part entière.
+## Le cas de l'emballage
 
-Mais l'annotation écrite a ses limites. Elle est lente. Elle interrompt le flux de la lecture. Elle favorise les remarques courtes, les mots-clés, les soulignements, au détriment des réflexions développées. Combien de fois avons-nous eu une pensée riche en lisant, une connexion inattendue, une objection nuancée, pour la voir s'évanouir parce que le temps de prendre un stylo, elle avait disparu ?
+Prenons un exemple concret : l'emballage plastique. On nous répète qu'il faut acheter en vrac, refuser les sachets, privilégier les contenants réutilisables. D'accord. Mais qui a mis du plastique autour de tous les produits ? Ce n'est pas le consommateur qui est allé demander en manifestant devant les usines qu'on emballe ses carottes. Ce sont les distributeurs qui l'ont imposé pour des raisons logistiques, pour standardiser les formats, pour réduire les pertes au transport, pour permettre l'affichage des prix au gramme.
 
-## La voix comme interface naturelle
+Demander au consommateur de résoudre ce problème, c'est lui demander de renverser à lui seul toute une chaîne logistique optimisée depuis cinquante ans. C'est hors de portée. La seule solution qui marche, c'est la réglementation : interdire certains formats d'emballage, taxer les autres, imposer des standards de consigne. Quand la France a interdit les sacs plastiques à usage unique en caisse en 2017, les émissions liées aux sacs ont chuté de 80% en deux ans. Aucune campagne de sensibilisation n'avait obtenu un tel résultat.
 
-La voix est notre interface cognitive la plus naturelle. Avant l'écriture, avant même le langage articulé tel que nous le connaissons, les humains vocalisaient pour communiquer. Le canal vocal est rapide, il ne mobilise pas les mains, et surtout il est directement connecté aux processus de pensée verbale.
+La leçon est claire : le levier efficace n'est pas la vertu du consommateur. C'est la loi.
 
-Quand nous réfléchissons, nous utilisons souvent un monologue intérieur. Ce monologue est essentiellement vocal : il utilise les mêmes aires cérébrales que la parole, simplement sans activer les muscles de la phonation. Penser, dans une large mesure, c'est se parler à soi-même silencieusement. Il est donc naturel que l'expression de la pensée passe préférentiellement par la voix.
+## L'incohérence assumée
 
-C'est pourquoi les séminaires fonctionnent. Quand un groupe lit un texte puis en discute, les idées émergent qui n'auraient pas existé dans la lecture solitaire. La discussion force à articuler, à préciser, à défendre. Elle crée une pression cognitive productive. Le problème est que le séminaire exige la présence simultanée de plusieurs personnes compétentes, ce qui en fait un format rare et privilégié.
+Il faut être honnête sur une chose : l'argument que je viens de dérouler est en tension avec ce que je fais moi-même. Je trie mes déchets. J'achète en vrac quand c'est possible. Je refuse les gobelets jetables au café. Si le zéro déchet individuel est une distraction, pourquoi est-ce que je continue ?
 
-La question est alors : peut-on retrouver cette dynamique conversationnelle sans dépendre d'un groupe ? Peut-on créer un interlocuteur qui écoute nos réactions à la lecture et y répond intelligemment ?
+Parce que ce n'est pas binaire. Les gestes individuels ont une fonction sociale : ils signalent aux autres qu'une norme est en train de bouger. Ils entretiennent une vigilance, une attention aux choses. Ils préparent culturellement des changements réglementaires qui seraient impossibles si personne ne les pratiquait. Un politicien peut interdire le plastique à usage unique si une partie de la population a déjà renoncé. Il ne peut pas le faire si personne ne l'a fait avant.
 
-## Le texte comme territoire partagé
+Les gestes individuels ne sauvent pas le climat. Mais ils rendent pensable les mesures qui, elles, le sauveraient. Cette fonction culturelle est réelle. Elle ne justifie pas qu'on s'arrête là.
 
-Dans un séminaire, le texte est le territoire commun. Les participants ne discutent pas dans le vide. Ils pointent des passages, citent des phrases, se réfèrent à la structure de l'argument. Le texte ancre la conversation et la discipline. Sans lui, la discussion dérive vers l'opinion générale. Avec lui, elle reste précise et productive.
+## Ce que "agir" signifie vraiment
 
-Cette notion d'ancrage est cruciale. Un commentaire vocal sur un texte n'a de valeur que s'il est situé. Dire "je ne suis pas d'accord" ne signifie rien sans savoir avec quoi on n'est pas d'accord. Dire "ce passage me rappelle les travaux de Kahneman sur les biais cognitifs" est utile seulement si l'on sait quel passage est concerné.
+Quand quelqu'un me dit qu'il "agit pour le climat", et qu'il me parle de son compost et de ses courses en vrac, j'ai envie de lui poser une question : as-tu voté aux dernières élections pour le candidat qui proposait la loi la plus contraignante sur les émissions industrielles ? As-tu écrit à ton député pour l'alerter sur la trajectoire de décarbonation ? As-tu donné cent euros cette année à une ONG qui attaque l'État en justice pour inaction climatique ? As-tu participé à une manifestation, à une grève, à un blocage ?
 
-Le défi technique est de relier la voix au texte. Quand un lecteur murmure "c'est intéressant" en lisant un paragraphe sur la neuroplasticité, le système doit comprendre que ce commentaire porte sur ce paragraphe précis, pas sur le texte en général. Cette liaison entre l'oral et l'écrit, entre le flux temporel de la parole et la spatialité du texte, est au coeur du problème.
+La quasi-totalité des gens que je connais répondent "non" à toutes ces questions, mais "oui" à la question du compost. Ce déséquilibre est le symptôme d'une confusion. On a pris l'habitude d'appeler "action écologique" ce qui est en réalité une pratique domestique de gestion des déchets.
 
-Les solutions existantes passent généralement par la sélection manuelle : on surligne un passage, puis on dicte un commentaire. Mais cette approche réintroduit exactement la friction qu'on cherchait à éliminer. Le lecteur doit interrompre sa lecture, utiliser ses mains, effectuer une opération de sélection, puis seulement parler. À ce stade, la pensée originale a souvent disparu.
+L'action politique au sens strict — écrire, voter, manifester, financer des procédures juridiques, s'engager dans un parti — est largement absente du quotidien des gens qui pourtant se disent préoccupés par le climat. Le trille mimétique des petits gestes a saturé l'espace mental qui devrait être occupé par la politique.
 
-## Vers une lecture augmentée
+## Le paradoxe climatique en chiffres
 
-L'idée d'une lecture augmentée par la technologie n'est pas nouvelle. Vannevar Bush décrivait dès 1945 son Memex, une machine permettant de créer des liens entre documents et d'annoter des passages. Ted Nelson a inventé le concept d'hypertexte dans les années 1960 précisément pour permettre ce type d'interaction riche avec les textes. Le web lui-même est, dans son essence, un système d'annotation et de liaison entre documents.
+Un chiffre ramène tout à l'échelle : pour respecter l'objectif de 1,5°C fixé par l'Accord de Paris, chaque Français devrait émettre environ 2 tonnes de CO2 par an en 2050. Il en émet aujourd'hui 9 tonnes. Une division par quatre, en moins de trente ans.
 
-Mais ces systèmes sont restés visuels et manuels. Ils augmentent la navigation entre textes, pas l'interaction avec un texte. Ils facilitent le parcours horizontal entre de nombreux documents, mais n'approfondissent pas la lecture verticale d'un seul texte.
+Aucune combinaison de gestes individuels ne permet d'atteindre ce chiffre. Même en éliminant la viande, en supprimant l'avion, en passant au vélo électrique et en isolant parfaitement son logement, un Français moyen reste au-dessus de 4 tonnes, simplement à cause de la part "incompressible" que représentent les services publics, les infrastructures, la production industrielle qu'il consomme indirectement, la défense nationale, la santé, l'éducation.
 
-Ce qui change aujourd'hui, c'est la convergence de trois technologies : la reconnaissance vocale en temps réel suffisamment fiable pour transcrire la parole courante, les modèles de langage capables de comprendre le contexte et de formuler des réponses pertinentes, et les interfaces légères capables de relier ces flux au document lu.
+La moitié du chemin restant ne dépend donc pas de lui. Elle dépend de la décarbonation de l'industrie française, de l'électrification des transports collectifs, de la rénovation massive du bâti, de l'évolution du mix agricole. Toutes ces décisions sont politiques. Aucune n'est individuelle.
 
-Aucune de ces technologies n'est parfaite. La reconnaissance vocale fait encore des erreurs, surtout en français avec ses liaisons et ses homophones. Les modèles de langage hallucinent parfois et manquent de rigueur factuelle. Les interfaces sont souvent trop complexes ou trop simplistes.
+## Le piège de la vertu
 
-Mais leur combinaison ouvre une possibilité nouvelle : celle d'un lecteur qui peut simplement parler au texte qu'il lit, et recevoir une réponse informée. Pas un chatbot généraliste qui ignore ce qu'on est en train de lire. Pas un moteur de recherche qui renvoie vers d'autres documents. Un interlocuteur qui a lu le même texte, qui sait où on en est dans la lecture, et qui peut répondre en s'appuyant sur le contenu spécifique du document.
+Il y a un dernier point, plus psychologique. La logique du zéro déchet produit une forme de pureté morale qui empoisonne la discussion publique. On finit par ne plus oser parler climat avec quelqu'un qui mange de la viande ou qui prend l'avion. Chacun se sent jugé ou en posture d'accusateur. Les conversations se crispent autour de la vertu comparée plutôt que de se concentrer sur les décisions collectives à faire.
 
-## La conversation comme méthode de pensée
+Ce piège est redoutable parce qu'il divise les gens qui devraient être alliés. Quelqu'un qui milite politiquement pour une fiscalité carbone ambitieuse mais qui continue à manger de la viande est souvent perçu comme moins crédible qu'un végan militant qui ne vote pas. C'est l'inverse de ce qu'il faudrait. Le premier agit sur les structures, le second sur son assiette. Leur impact respectif n'est pas du tout comparable.
 
-Il y a une raison profonde pour laquelle la conversation est un outil de pensée efficace : elle nous oblige à être explicites. Dans notre monologue intérieur, nous pouvons rester vagues, sauter des étapes logiques, nous satisfaire d'impressions floues. La conversation exige de formuler, et formuler, c'est penser.
+Le mouvement écologique français a beaucoup gagné en visibilité ces dernières années, mais il a aussi beaucoup perdu en cohérence stratégique. On se dispute pour savoir si manger du fromage est grave, pendant qu'on perd les batailles législatives sur les pesticides, les SUV, ou la rénovation thermique. L'ennemi se frotte les mains.
 
-Socrate le savait. Sa méthode, la maïeutique, repose sur l'idée que la vérité est déjà présente dans l'esprit de l'interlocuteur, mais qu'elle doit être accouchée par le dialogue. Les questions bien posées forcent la pensée à se préciser, à se confronter à ses propres contradictions, à avancer.
+## Que faire, alors
 
-Un outil de lecture conversationnel ne prétend pas remplacer Socrate. Mais il peut jouer un rôle analogue à celui d'un bon interlocuteur de séminaire : quelqu'un qui écoute, qui reformule, qui pose des questions, qui fait des connexions. Quelqu'un qui, par sa présence attentive, pousse le lecteur à être plus rigoureux dans sa propre réflexion.
+Je n'écris pas ce texte pour démoraliser les gens qui font des efforts. Je l'écris pour reconfigurer ce qu'on appelle "effort". Si on met bout à bout toutes les heures qu'une famille passe à laver des bocaux, à aller chercher du vrac dans trois épiceries différentes, à réparer des appareils qui devraient être remplacés — ces heures représentent un coût cognitif énorme. Investies différemment, elles pourraient produire un effet démesurément supérieur.
 
-La valeur n'est pas dans les réponses de la machine. Elle est dans les questions que le lecteur formule parce qu'il sait que quelqu'un écoute. C'est le paradoxe de l'outil : son utilité principale est de transformer le comportement de l'utilisateur, pas de produire du contenu.
+Écrire une lettre par mois à son député coûte moins de temps que le compostage hebdomadaire et a probablement plus d'impact. Faire un virement mensuel de 20 euros à une association qui attaque l'État en justice est infiniment plus efficace qu'une année entière de courses en vrac. Participer à une manifestation un samedi par trimestre vaut tout le tri sélectif d'une vie.
 
-## L'annotation comme pratique sociale
+Ces actions ne remplacent pas les gestes domestiques. Elles les complètent, mais elles sont absentes du récit dominant. On ne montre jamais à la télévision une famille en train de rédiger collectivement un courrier à l'Assemblée. On montre toujours la même famille avec son bocal de déchets annuels.
 
-L'annotation n'est pas seulement un acte solitaire. Les traditions talmudique et coranique montrent que le commentaire peut devenir un genre littéraire à part entière. Le Talmud est littéralement un texte entouré de ses commentaires, eux-mêmes commentés à leur tour. Chaque page est un palimpseste visuel où le texte original occupe le centre et les interprétations successives s'empilent dans les marges. La mise en page elle-même encode la hiérarchie des voix.
+## La question qu'on n'ose pas poser
 
-Dans la tradition universitaire occidentale, la glose médiévale jouait un rôle similaire. Les étudiants copiaient le texte de référence en laissant de larges marges, puis remplissaient ces espaces avec les commentaires du maître et leurs propres réflexions. Le manuscrit devenait un artefact d'apprentissage, unique à chaque étudiant.
+Il reste une question qui rôde derrière tout ça : pourquoi est-il si facile, politiquement et médiatiquement, de parler de déchets, et si difficile de parler de production ? Pourquoi tant d'émissions, tant d'articles, tant de podcasts, tant d'influenceurs, tant de livres sur le mode de vie "low-impact", et si peu sur les décisions industrielles ?
 
-Cette pratique a décliné avec l'imprimerie. Le livre imprimé, avec ses marges étroites et son texte fixé, a progressivement séparé la lecture du commentaire. On lit dans un livre, on commente dans un cahier séparé, on discute dans un séminaire distinct. La fragmentation entre ces activités a un coût cognitif : les connexions entre le texte et la réflexion qu'il suscite deviennent plus difficiles à maintenir.
+La réponse est peut-être gênante. Parce que parler de production, c'est affronter des acteurs économiques puissants, qui ont des avocats, des budgets de communication, des accès aux décideurs. Parler de consommation, c'est s'adresser à des individus isolés, sans pouvoir collectif, qu'on peut culpabiliser sans risque.
 
-Le numérique offre l'opportunité de réunifier ces pratiques. Un document affiché sur écran peut accueillir des annotations sans altérer le texte original. La colonne de droite, vide pour l'instant, attend les commentaires du lecteur. Elle est l'équivalent moderne de la marge médiévale, mais avec un avantage décisif : elle peut répondre.
-
-## Ce qui reste à inventer
-
-Nous sommes au début de cette exploration. Les questions ouvertes sont nombreuses. Comment le système distingue-t-il un commentaire sur le texte d'une remarque adressée à quelqu'un d'autre dans la pièce ? Comment gère-t-il le silence prolongé, qui peut signifier concentration profonde ou simple distraction ? Comment évite-t-il de devenir une béquille cognitive qui dispense le lecteur de penser par lui-même ?
-
-Ces questions n'ont pas de réponse théorique. Elles ne se résoudront que par l'expérimentation, par l'usage, par l'observation patiente de ce que font réellement les lecteurs quand on leur donne cet outil. C'est pourquoi la première étape est de construire quelque chose de simple, de le mettre entre les mains de vrais lecteurs, et d'observer ce qui se passe.
-
-Le texte que vous lisez en ce moment est un premier test. Si vous pouviez parler à ce document, que diriez-vous ?
+Le zéro déchet est la forme parfaite de l'écologie dépolitisée. Il répond à une angoisse réelle sans rien demander à l'ordre établi. Il donne l'impression d'agir. Il produit de belles photos. Il est compatible avec le capitalisme tel qu'il est. C'est précisément ce qui le rend si populaire, et si insuffisant.
